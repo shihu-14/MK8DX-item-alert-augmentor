@@ -1,9 +1,37 @@
 .DS_Store
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
 
 # Local Python environment.
 yolovenv/
+.venv/
+venv/
+env/
 
 # Generated capture outputs.
 output_video*.mp4
+
+# Local datasets and training artifacts.
+data/*
+!data/README.md
+datasets/
+runs/
+outputs/
+predictions/
+debug_frames/
+debug/
+
+# Model/export artifacts. Existing tracked files remain tracked; do not add new
+# checkpoints by default.
+*.pt
+*.onnx
+*.engine
+
+# Videos and generated media.
+*.mp4
+*.mov
+*.avi
+*.mkv
