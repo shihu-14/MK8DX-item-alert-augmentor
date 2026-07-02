@@ -17,7 +17,10 @@ def test_known_labels_keep_raw_model_names() -> None:
 
 
 def test_minacle_eight_keeps_raw_label_and_maps_icon() -> None:
-    assert get_icon_path_for_label("Minacle-Eight") == "Minacle-Eight.png"
+    assert (
+        get_icon_path_for_label("Minacle-Eight")
+        == "assets/icons/alerts/Minacle-Eight.png"
+    )
     assert canonicalize_label("Minacle-Eight") == "miracle_eight"
 
 

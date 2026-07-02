@@ -112,5 +112,5 @@ labels:
   - raw: Piranha-Plant
     canonical: piranha_plant
     display: Piranha Plant
-    icon: Piranha-Plant.png
+    icon: assets/icons/alerts/Piranha-Plant.png
 ```

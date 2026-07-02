@@ -26,9 +26,10 @@ held-item classifier should use opponent association and temporal behavior.
 
 ## Current Entry Points
 
-- `detect.py`: current main realtime prototype.
+- `scripts/run_realtime.py`: current refactored realtime script.
+- `detect.py`: compatibility entrypoint for the realtime prototype.
 - `train.py`: YOLO training-history/reference script.
-- `main.py`, `tmp1.py`, `tmp2.py`: experimental snapshots.
+- `archive/experimental/`: historical experimental snapshots.
 
 ## Runtime Pipeline
 

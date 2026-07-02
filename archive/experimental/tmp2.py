@@ -13,12 +13,12 @@ face_model = YOLO("runs/detect/train/weights/best2.pt")
 
 # class name -> alert images
 class2image = {
-    "Piranha-Plant": cv2.imread("Piranha-Plant.png"),
-    "Super-Horn": cv2.imread("Super-Horn.png"),
-    "FB": cv2.imread("FB.png"),
-    "Boomerang": cv2.imread("Boomerang.png"),
-    "Minacle-Eight": cv2.imread("Minacle-Eight.png"),
-    "green-shell3" : cv2.imread("Green-Shell3.png"),
+    "Piranha-Plant": cv2.imread("assets/icons/alerts/Piranha-Plant.png"),
+    "Super-Horn": cv2.imread("assets/icons/alerts/Super-Horn.png"),
+    "FB": cv2.imread("assets/icons/alerts/FB.png"),
+    "Boomerang": cv2.imread("assets/icons/alerts/Boomerang.png"),
+    "Minacle-Eight": cv2.imread("assets/icons/alerts/Minacle-Eight.png"),
+    "green-shell3" : cv2.imread("assets/icons/alerts/Green-Shell3.png"),
     # others..
 }
 

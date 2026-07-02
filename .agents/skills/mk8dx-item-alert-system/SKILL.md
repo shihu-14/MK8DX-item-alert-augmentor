@@ -57,9 +57,11 @@ Refactor in this order unless a task gives a more specific direction:
 
 ## Working Guidance
 
-- Treat `detect.py` as the current main runtime prototype.
+- Treat `scripts/run_realtime.py` as the current refactored realtime script.
+- Treat `detect.py` as the compatibility entrypoint.
 - Treat `train.py` as the training-history/reference script.
-- Treat `main.py`, `tmp1.py`, and `tmp2.py` as experimental snapshots.
+- Treat `archive/experimental/main.py`, `archive/experimental/tmp1.py`, and
+  `archive/experimental/tmp2.py` as historical experimental snapshots.
 - Do not rename model labels in code without a compatibility mapping.
 - Keep dataset paths configurable.
 - Do not invent metrics, benchmark results, or evaluation status.

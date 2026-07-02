@@ -15,8 +15,9 @@ documentation, not for unfair online competitive use.
 - `detect.py` remains the compatibility entrypoint for the realtime prototype.
 - `src/mk8dx_item_alert/runtime.py` contains the refactored realtime runtime.
 - `train.py` is the current YOLO training-history/reference script.
-- `main.py`, `tmp1.py`, and `tmp2.py` are experimental snapshots. Do not delete
-  them in routine cleanup.
+- `archive/experimental/main.py`, `archive/experimental/tmp1.py`, and
+  `archive/experimental/tmp2.py` are historical snapshots. Do not delete them in
+  routine cleanup.
 - Detailed procedures live in `.agents/skills/mk8dx-item-alert-system/` and
   `docs/`.
 

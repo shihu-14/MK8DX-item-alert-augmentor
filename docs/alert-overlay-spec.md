@@ -7,12 +7,12 @@ prototype mappings:
 
 | Model label | Alert icon |
 | --- | --- |
-| `Piranha-Plant` | `Piranha-Plant.png` |
-| `Super-Horn` | `Super-Horn.png` |
-| `FB` | `FB.png` |
-| `Boomerang` | `Boomerang.png` |
-| `Minacle-Eight` | `Minacle-Eight.png` |
-| `green-shell3` | `Green-Shell3.png` |
+| `Piranha-Plant` | `assets/icons/alerts/Piranha-Plant.png` |
+| `Super-Horn` | `assets/icons/alerts/Super-Horn.png` |
+| `FB` | `assets/icons/alerts/FB.png` |
+| `Boomerang` | `assets/icons/alerts/Boomerang.png` |
+| `Minacle-Eight` | `assets/icons/alerts/Minacle-Eight.png` |
+| `green-shell3` | `assets/icons/alerts/Green-Shell3.png` |
 
 ## Display Position
 

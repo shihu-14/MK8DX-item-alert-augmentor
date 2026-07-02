@@ -14,8 +14,8 @@ an item is already active.
 - `scripts/run_realtime.py` is the refactored realtime script entrypoint.
 - `detect.py` remains a compatibility entrypoint.
 - `src/mk8dx_item_alert/runtime.py` contains the refactored realtime loop.
+- Historical experimental snapshots live under `archive/experimental/`.
 - `train.py` is the current YOLO training-history/reference script.
-- `main.py`, `tmp1.py`, and `tmp2.py` are experimental snapshots.
 - The prototype uses OpenCV and Ultralytics YOLO.
 - It captures frames, applies a face/button-like gate region, runs item
   detection, maps detected classes to alert image files, and overlays alert
@@ -32,8 +32,9 @@ prototype paths include:
 
 - `runs/detect/train/weights/best_29.pt` for item detection.
 - `runs/detect/train/weights/best_30.pt` for gate/face detection.
-- Alert icons such as `Piranha-Plant.png`, `Super-Horn.png`, `FB.png`,
-  `Boomerang.png`, `Minacle-Eight.png`, and `Green-Shell3.png`.
+- Alert icons under `assets/icons/alerts/`, such as `Piranha-Plant.png`,
+  `Super-Horn.png`, `FB.png`, `Boomerang.png`, `Minacle-Eight.png`, and
+  `Green-Shell3.png`.
 
 Some checkpoints are currently tracked for continuity, but new model artifacts
 should not be committed by default. See `docs/model-registry.md` and

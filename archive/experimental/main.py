@@ -11,8 +11,8 @@ model = YOLO("runs/detect/train/weights/best.pt")
 # 顔検出用のHaar Cascadeモデルの読み込み（高速）
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
-# 表示用画像（例：PiranhaPlant.png）
-display_img = cv2.imread("PiranhaPlant.png")
+# 表示用画像（例：Piranha-Plant.png）
+display_img = cv2.imread("assets/icons/alerts/Piranha-Plant.png")
 if display_img is None:
     raise RuntimeError("表示する画像（icon.png）が読み込めません")
 

@@ -18,37 +18,37 @@ LABELS: dict[str, LabelInfo] = {
         raw_label="Piranha-Plant",
         canonical_name="piranha_plant",
         display_name="Piranha Plant",
-        icon_path="Piranha-Plant.png",
+        icon_path="assets/icons/alerts/Piranha-Plant.png",
     ),
     "Super-Horn": LabelInfo(
         raw_label="Super-Horn",
         canonical_name="super_horn",
         display_name="Super Horn",
-        icon_path="Super-Horn.png",
+        icon_path="assets/icons/alerts/Super-Horn.png",
     ),
     "FB": LabelInfo(
         raw_label="FB",
         canonical_name="fb",
         display_name="FB",
-        icon_path="FB.png",
+        icon_path="assets/icons/alerts/FB.png",
     ),
     "Boomerang": LabelInfo(
         raw_label="Boomerang",
         canonical_name="boomerang",
         display_name="Boomerang",
-        icon_path="Boomerang.png",
+        icon_path="assets/icons/alerts/Boomerang.png",
     ),
     "Minacle-Eight": LabelInfo(
         raw_label="Minacle-Eight",
         canonical_name="miracle_eight",
         display_name="Miracle Eight",
-        icon_path="Minacle-Eight.png",
+        icon_path="assets/icons/alerts/Minacle-Eight.png",
     ),
     "green-shell3": LabelInfo(
         raw_label="green-shell3",
         canonical_name="triple_green_shell",
         display_name="Triple Green Shell",
-        icon_path="Green-Shell3.png",
+        icon_path="assets/icons/alerts/Green-Shell3.png",
     ),
 }
 

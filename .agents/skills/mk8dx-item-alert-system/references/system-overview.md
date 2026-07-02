@@ -28,12 +28,14 @@ strong claims that an item is held.
 
 ## Current Prototype
 
-The current runtime prototype is `detect.py`. It uses OpenCV for capture and
-overlay, Ultralytics YOLO for item detection, and a face/button-like gate region
-to decide whether to run item detection.
+The current refactored runtime is `mk8dx_item_alert.runtime.run_realtime`, with
+`scripts/run_realtime.py` as the script entrypoint and `detect.py` as a
+compatibility entrypoint. It uses OpenCV for capture and overlay, Ultralytics
+YOLO for item detection, and a face/button-like gate region to decide whether to
+run item detection.
 
 `train.py` records training history and metrics for several item and gate/face
-models. `main.py`, `tmp1.py`, and `tmp2.py` are experimental snapshots.
+models. Historical experimental snapshots live under `archive/experimental/`.
 
 ## Runtime Pipeline
 
