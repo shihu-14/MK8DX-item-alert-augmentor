@@ -4,6 +4,9 @@ This document describes what should eventually move out of hard-coded script
 constants and into configuration. It is a documentation/spec pass; do not
 implement a config system until the change is behavior-preserving and scoped.
 
+The first implementation refactor stores current defaults in
+`mk8dx_item_alert.config.RuntimeConfig`. It does not load YAML or TOML files yet.
+
 ## Runtime Model Paths
 
 Configuration should include:

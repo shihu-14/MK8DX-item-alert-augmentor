@@ -11,7 +11,9 @@ an item is already active.
 
 ## Current Prototype Status
 
-- `detect.py` is the current main runtime prototype.
+- `scripts/run_realtime.py` is the refactored realtime script entrypoint.
+- `detect.py` remains a compatibility entrypoint.
+- `src/mk8dx_item_alert/runtime.py` contains the refactored realtime loop.
 - `train.py` is the current YOLO training-history/reference script.
 - `main.py`, `tmp1.py`, and `tmp2.py` are experimental snapshots.
 - The prototype uses OpenCV and Ultralytics YOLO.
@@ -59,16 +61,22 @@ pip install opencv-python numpy ultralytics
 
 ## Run
 
-The current prototype is script-based:
+The refactored realtime prototype can be run with:
+
+```bash
+python scripts/run_realtime.py
+```
+
+The original command remains supported as a compatibility entrypoint:
 
 ```bash
 python detect.py
 ```
 
-Future runnable commands should move under `scripts/`, for example:
+The first refactor pass also supports a minimal CLI:
 
 ```bash
-python scripts/run_realtime.py --config configs/local.yaml
+python scripts/run_realtime.py --source 0 --no-save --debug
 ```
 
 Realtime use depends on local camera/gameplay capture setup, frame size, gate

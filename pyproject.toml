@@ -25,7 +25,11 @@ line-length = 88
 target-version = "py311"
 
 [tool.setuptools]
-py-modules = []
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]

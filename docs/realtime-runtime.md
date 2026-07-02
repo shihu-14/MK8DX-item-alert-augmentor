@@ -7,11 +7,16 @@ Depending on the local setup, this may refer to a camera, capture card, or
 virtual camera. Realtime behavior depends on the input device, frame size, and
 system performance.
 
+The refactored runtime lives in `mk8dx_item_alert.runtime.run_realtime`.
+Use `python scripts/run_realtime.py` for the script entrypoint. `python
+detect.py` remains a compatibility wrapper.
+
 ## Frame Size Assumptions
 
-`detect.py` derives frame width and height from the first captured frame, then
-uses hard-coded proportional or fixed regions. Any change in capture resolution,
-layout, or crop can require recalibration.
+The realtime runtime derives frame width and height from the first captured
+frame, then uses config defaults that preserve the original proportional and
+fixed regions. Any change in capture resolution, layout, or crop can require
+recalibration.
 
 ## Gate Region
 
@@ -41,26 +46,19 @@ before running item detection. Future config should expose:
 These values should move into config gradually while preserving current
 behavior.
 
-## Expected Command-Line Options
+## Command-Line Options
 
-Future scripts should expose options such as:
+The first refactored script exposes:
 
 ```text
 --source
---item-model
---gate-model
---conf-threshold
---gate-threshold
---imgsz
---output
 --no-save
 --debug
---profile
 ```
 
-Configuration design is documented in `docs/configuration-spec.md`. The current
-task scope is documentation and behavior-preserving extraction, not a broad
-runtime rewrite.
+Configuration design is documented in `docs/configuration-spec.md`. The first
+implementation pass uses dataclass defaults and does not load TOML/YAML config
+files yet.
 
 ## Runtime Boundaries
 

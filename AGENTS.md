@@ -12,8 +12,8 @@ documentation, not for unfair online competitive use.
 
 ## Source Of Truth
 
-- `detect.py` is the current main runtime prototype unless another entrypoint is
-  documented.
+- `detect.py` remains the compatibility entrypoint for the realtime prototype.
+- `src/mk8dx_item_alert/runtime.py` contains the refactored realtime runtime.
 - `train.py` is the current YOLO training-history/reference script.
 - `main.py`, `tmp1.py`, and `tmp2.py` are experimental snapshots. Do not delete
   them in routine cleanup.
