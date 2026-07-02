@@ -10,6 +10,23 @@ items. It is not a generic object detection project. The goal is to detect an
 opponent's currently held item from the gameplay screen before it is thrown,
 dropped, or activated, then render a visible alert.
 
+## Specificity Boundary
+
+This skill describes reusable development workflows for this repository, not
+one-off fixes for a single script.
+
+Keep the skill focused on:
+
+- Runtime pipeline structure.
+- Refactoring order.
+- Training/evaluation workflow.
+- Realtime inference principles.
+- Artifact and model-management rules.
+- Done criteria.
+
+Put concrete checkpoint names, label tables, metrics, calibration values, and
+experiment notes in `docs/` or `references/`.
+
 ## Runtime Pipeline
 
 Use this conceptual pipeline when reasoning about runtime changes:
@@ -75,6 +92,23 @@ Refactor in this order unless a task gives a more specific direction:
 - Model registry: `references/model-registry.md`
 - Artifact policy: `references/artifact-policy.md`
 - Python style: `references/python-style.md`
+- Annotation/export: `references/annotation-export.md`
+- Configuration: `docs/configuration-spec.md`
+
+## Which Reference To Read
+
+- Runtime, refactoring, FPS, or latency work: read
+  `references/realtime-inference.md`, `references/python-style.md`, and
+  `references/system-overview.md`.
+- YOLO training or training script changes: read `references/yolo-training.md`,
+  `references/model-registry.md`, and `references/artifact-policy.md`.
+- Model/checkpoint changes: read `references/model-registry.md` and update
+  `docs/model-registry.md`.
+- Alert rendering or UI behavior: read `docs/alert-overlay-spec.md` and
+  `references/realtime-inference.md`.
+- Dataset or annotation export changes: read `docs/dataset-policy.md` and
+  `references/annotation-export.md`.
+- Config refactors: read `docs/configuration-spec.md`.
 
 ## Done Criteria
 

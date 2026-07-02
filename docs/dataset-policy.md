@@ -22,6 +22,9 @@ formats and policies, not detailed GUI instructions for annotation tools.
 
 ## Expected YOLO Export
 
+See `.agents/skills/mk8dx-item-alert-system/references/annotation-export.md`
+for the repo skill's exported dataset contract.
+
 Expected exported dataset layout:
 
 ```text

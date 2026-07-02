@@ -26,6 +26,8 @@ Future config should expose:
 - Gate model path.
 - Option to disable gate detection for offline evaluation.
 
+See `docs/configuration-spec.md` for the broader configuration target.
+
 ## Item Detection Region
 
 The prototype masks upper and lower screen regions and masks the gate region
@@ -35,6 +37,9 @@ before running item detection. Future config should expose:
 - Additional ignored regions.
 - Input image size.
 - Confidence threshold.
+
+These values should move into config gradually while preserving current
+behavior.
 
 ## Expected Command-Line Options
 
@@ -52,6 +57,10 @@ Future scripts should expose options such as:
 --debug
 --profile
 ```
+
+Configuration design is documented in `docs/configuration-spec.md`. The current
+task scope is documentation and behavior-preserving extraction, not a broad
+runtime rewrite.
 
 ## Runtime Boundaries
 

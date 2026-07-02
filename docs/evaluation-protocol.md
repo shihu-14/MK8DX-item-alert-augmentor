@@ -13,6 +13,24 @@ Record standard YOLO metrics for item and gate models:
 Keep metrics tied to a specific checkpoint, dataset version, label set, image
 size, and confidence threshold.
 
+## Metric Scope
+
+YOLO metrics such as precision, recall, mAP50, and mAP50-95 evaluate
+bounding-box detection quality. They do not, by themselves, prove that the
+system succeeds as a held-item alert system.
+
+Project-level evaluation must also measure:
+
+- Correct early alert for opponent-held items.
+- False alert on thrown, dropped, or background items.
+- Missed held items.
+- Alert timing before item use.
+- Gate false positives and false negatives.
+- Realtime FPS and latency.
+
+When reporting improvements, separate model-level detection metrics, runtime
+pipeline metrics, and held-item alert behavior metrics. Do not invent numbers.
+
 ## Runtime Metrics
 
 For realtime changes, record:

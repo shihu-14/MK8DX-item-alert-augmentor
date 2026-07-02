@@ -37,6 +37,10 @@ Some checkpoints are currently tracked for continuity, but new model artifacts
 should not be committed by default. See `docs/model-registry.md` and
 `docs/dataset-policy.md`.
 
+Annotation is external to this repository workflow. Exported YOLO datasets
+should follow `docs/dataset-policy.md` and
+`.agents/skills/mk8dx-item-alert-system/references/annotation-export.md`.
+
 ## Setup
 
 Create a local Python environment and install dependencies:
@@ -75,11 +79,16 @@ region calibration, and checkpoint availability.
 - System spec: `docs/system-spec.md`
 - Class labels: `docs/class-labels.md`
 - Model registry: `docs/model-registry.md`
+- Configuration spec: `docs/configuration-spec.md`
 - Dataset policy: `docs/dataset-policy.md`
 - Evaluation protocol: `docs/evaluation-protocol.md`
 - Realtime runtime: `docs/realtime-runtime.md`
 - Alert overlay: `docs/alert-overlay-spec.md`
 - Local data layout: `data/README.md`
+
+YOLO metrics are necessary but not sufficient for this project. Evaluation also
+needs held-item alert behavior, including early alerts, missed held items,
+thrown/dropped/background false alerts, gate errors, FPS, and latency.
 
 ## Artifact Policy
 

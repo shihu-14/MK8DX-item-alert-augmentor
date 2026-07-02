@@ -60,3 +60,6 @@ documentation, not for unfair online competitive use.
   refactoring.
 - Keep `AGENTS.md` short. Put detailed YOLO, annotation, artifact, and runtime
   procedures in docs or skill references.
+- Keep reusable workflows in the repo skill and put concrete labels,
+  checkpoints, metrics, calibration values, and experiment notes in docs or
+  references.
