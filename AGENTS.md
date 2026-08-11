@@ -18,6 +18,10 @@ Keep use to local research, offline testing, and documentation.
 - Runtime module contracts belong in `docs/architecture.md`.
 - Held-item temporal and geometry behavior belongs in
   `docs/held-item-association.md`.
+- Evaluation schemas and metric meaning belong in
+  `docs/evaluation-protocol.md`.
+- Dataset and artifact policy belong in `docs/dataset-policy.md` and
+  `docs/artifact-policy.md`.
 - Detailed workflows live in
   `.agents/skills/mk8dx-item-alert-system/`.
 
@@ -42,13 +46,9 @@ root-level training scripts. Git history is the archive.
 
 ## Data And Artifact Policy
 
-- Keep datasets, videos, frame dumps, predictions, benchmarks, YOLO runs,
-  virtual environments, and model binaries out of Git.
-- Track model metadata and hashes in `models/manifest.toml`.
-- Publish approved checkpoints as versioned GitHub Release assets, not normal
-  Git or Git LFS.
-- Do not publish models or alert icons until provenance and redistribution
-  rights are recorded.
+Follow `docs/dataset-policy.md`, `docs/artifact-policy.md`, and
+`docs/artifact-provenance.md`. Do not commit local-only artifacts or publish
+artifacts whose provenance and redistribution rights are unresolved.
 
 ## Verification
 

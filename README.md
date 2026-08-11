@@ -70,6 +70,11 @@ mk8dx-alert evaluate --ground-truth truth.jsonl \
   --predictions predictions/gameplay.jsonl
 ```
 
+Legacy JSONL contains item candidates and reports `candidate_*` metrics.
+Integrated JSONL contains associated, confirmed alerts and reports
+`held_alert_*` metrics. These scopes can share held truth with item and
+opponent boxes, but their precision and recall must not be compared directly.
+
 The integrated model uses the existing six item labels in their current order
 and appends `Opponent`. Only held, dragged, or orbiting items are positives;
 thrown, dropped, course, background, and HUD examples are negatives.
@@ -92,7 +97,8 @@ python -m compileall src scripts tests
 
 See `docs/system-spec.md`, `docs/architecture.md`,
 `docs/held-item-association.md`, `docs/model-registry.md`,
-`docs/evaluation-protocol.md`, and the repository Skill under
+`docs/evaluation-protocol.md`, `docs/dataset-policy.md`,
+`docs/artifact-policy.md`, and the repository Skill under
 `.agents/skills/mk8dx-item-alert-system/`.
 
 Model and icon provenance is not yet established. Do not publish those

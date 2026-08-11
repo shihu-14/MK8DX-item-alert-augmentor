@@ -131,7 +131,14 @@ def test_runtime_writes_frame_level_prediction_jsonl(
     assert record["frame"] == 0
     assert record["gate_active"] is True
     assert record["mode"] == "legacy"
-    assert record["alerts"] == []
+    assert "alerts" not in record
+    assert record["candidates"] == [
+        {
+            "label": "Boomerang",
+            "confidence": 0.9,
+            "item_bbox": [10.0, 10.0, 20.0, 20.0],
+        }
+    ]
 
 
 def test_profile_output_uses_wall_clock_effective_fps(capsys) -> None:

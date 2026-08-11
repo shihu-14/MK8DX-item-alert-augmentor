@@ -1,4 +1,4 @@
-"""Evaluate frame-level held-item alert records."""
+"""Evaluate frame-level legacy candidates or integrated held alerts."""
 
 from __future__ import annotations
 
@@ -10,6 +10,10 @@ from typing import TextIO
 
 VALID_STATES = frozenset({"held", "thrown", "dropped", "background", "hud"})
 DEFAULT_IOU_THRESHOLD = 0.5
+LEGACY_MODE = "legacy"
+INTEGRATED_MODE = "integrated"
+LEGACY_METRIC_SCOPE = "legacy_candidate"
+INTEGRATED_METRIC_SCOPE = "integrated_held_alert"
 
 BoundingBox = tuple[float, float, float, float]
 
@@ -25,9 +29,9 @@ class _TruthObject:
 
 
 @dataclass(frozen=True)
-class _PredictedAlert:
+class _Prediction:
     label: str
-    opponent_bbox: BoundingBox
+    opponent_bbox: BoundingBox | None
     item_bbox: BoundingBox
     confidence: float
     item_observed: bool
@@ -35,6 +39,7 @@ class _PredictedAlert:
 
 @dataclass(frozen=True)
 class EvaluationReport:
+    metric_scope: str
     true_positive: int
     false_positive: int
     false_negative: int
@@ -67,7 +72,14 @@ def evaluate_jsonl(
         raise ValueError("iou_threshold must be in (0, 1]")
 
     truth_frames = _read_frame_records(ground_truth_path, "objects")
-    prediction_frames = _read_frame_records(predictions_path, "alerts")
+    prediction_frames = _read_frame_records(predictions_path)
+    prediction_mode = _prediction_mode(prediction_frames, predictions_path)
+    collection_key = "candidates" if prediction_mode == LEGACY_MODE else "alerts"
+    metric_scope = (
+        LEGACY_METRIC_SCOPE
+        if prediction_mode == LEGACY_MODE
+        else INTEGRATED_METRIC_SCOPE
+    )
     true_positive = 0
     false_positive = 0
     false_negative = 0
@@ -84,8 +96,13 @@ def evaluate_jsonl(
             for value in truth_record.get("objects", [])
         )
         predicted_alerts = tuple(
-            _parse_predicted_alert(value, predictions_path, frame)
-            for value in prediction_record.get("alerts", [])
+            _parse_prediction(value, predictions_path, frame, prediction_mode)
+            for value in _record_collection(
+                prediction_record,
+                collection_key,
+                predictions_path,
+                frame,
+            )
         )
         held_truth = tuple(
             index
@@ -99,7 +116,9 @@ def evaluate_jsonl(
             held_truth,
             prediction_indexes,
             iou_threshold,
-            bbox_kind="opponent",
+            bbox_kind=(
+                "item" if prediction_mode == LEGACY_MODE else "opponent"
+            ),
         )
         held_predictions = {prediction_index for prediction_index, _ in held_matches}
         negative_truth = tuple(
@@ -157,6 +176,7 @@ def evaluate_jsonl(
     }
     lead_values = tuple(lead_frames_by_event.values())
     return EvaluationReport(
+        metric_scope=metric_scope,
         true_positive=true_positive,
         false_positive=false_positive,
         false_negative=false_negative,
@@ -176,6 +196,26 @@ def evaluate_jsonl(
 
 def prediction_frame_record(frame: int, result) -> dict[str, object]:
     """Build one runtime prediction record without exposing tracker IDs as GT IDs."""
+    if result.mode == LEGACY_MODE:
+        return {
+            "frame": frame,
+            "gate_active": result.gate_active,
+            "mode": result.mode,
+            "candidates": [
+                {
+                    "label": detection.label,
+                    "confidence": detection.confidence,
+                    "item_bbox": [
+                        detection.x1,
+                        detection.y1,
+                        detection.x2,
+                        detection.y2,
+                    ],
+                }
+                for detection in result.detections
+            ],
+        }
+
     alerts = []
     for alert in result.alerts:
         if alert.opponent_bbox is None or alert.item_bbox is None:
@@ -203,7 +243,10 @@ def write_prediction_frame(handle: TextIO, frame: int, result) -> None:
     handle.write("\n")
 
 
-def _read_frame_records(path: Path, collection_key: str) -> dict[int, dict[str, object]]:
+def _read_frame_records(
+    path: Path,
+    collection_key: str | None = None,
+) -> dict[int, dict[str, object]]:
     records: dict[int, dict[str, object]] = {}
     for line_number, line in enumerate(path.read_text().splitlines(), start=1):
         if not line.strip():
@@ -216,8 +259,8 @@ def _read_frame_records(path: Path, collection_key: str) -> dict[int, dict[str, 
         frame = int(raw["frame"])
         if frame in records:
             raise ValueError(f"{path}:{line_number}: duplicate frame {frame}")
-        collection = raw.get(collection_key, [])
-        if not isinstance(collection, list):
+        collection = raw.get(collection_key, []) if collection_key else None
+        if collection_key and not isinstance(collection, list):
             raise TypeError(
                 f"{path}:{line_number}: {collection_key} must be a list"
             )
@@ -225,6 +268,32 @@ def _read_frame_records(path: Path, collection_key: str) -> dict[int, dict[str, 
             raise TypeError(f"{path}:{line_number}: gate_active must be a boolean")
         records[frame] = raw
     return records
+
+
+def _prediction_mode(
+    records: dict[int, dict[str, object]],
+    path: Path,
+) -> str:
+    if not records:
+        raise ValueError(f"{path}: prediction file must contain at least one frame")
+    modes = {record.get("mode") for record in records.values()}
+    if len(modes) != 1 or next(iter(modes)) not in {LEGACY_MODE, INTEGRATED_MODE}:
+        raise ValueError(
+            f"{path}: prediction frames must use one consistent legacy/integrated mode"
+        )
+    return str(next(iter(modes)))
+
+
+def _record_collection(
+    record: dict[str, object],
+    key: str,
+    path: Path,
+    frame: int,
+) -> list[object]:
+    collection = record.get(key, [])
+    if not isinstance(collection, list):
+        raise TypeError(f"{path}:frame {frame}: {key} must be a list")
+    return collection
 
 
 def _parse_truth_object(raw: object, path: Path, frame: int) -> _TruthObject:
@@ -256,7 +325,7 @@ def _parse_truth_object(raw: object, path: Path, frame: int) -> _TruthObject:
     )
     if state == "held" and opponent_bbox is None:
         raise ValueError(f"{path}:frame {frame}: held state requires opponent_bbox")
-    if state != "held" and item_bbox is None:
+    if item_bbox is None:
         raise ValueError(f"{path}:frame {frame}: {state} state requires item_bbox")
     return _TruthObject(
         label=str(_require_key(value, "label", path, frame)),
@@ -268,21 +337,34 @@ def _parse_truth_object(raw: object, path: Path, frame: int) -> _TruthObject:
     )
 
 
-def _parse_predicted_alert(
-    raw: object, path: Path, frame: int
-) -> _PredictedAlert:
+def _parse_prediction(
+    raw: object,
+    path: Path,
+    frame: int,
+    mode: str,
+) -> _Prediction:
     value = _require_object(raw, path, frame, "predicted alert")
-    item_observed = _require_key(value, "item_observed", path, frame)
+    item_observed = value.get("item_observed", True)
+    opponent_bbox = _parse_optional_bbox(
+        value.get("opponent_bbox"),
+        path,
+        frame,
+        "opponent_bbox",
+    )
+    if mode == INTEGRATED_MODE:
+        if opponent_bbox is None:
+            raise ValueError(
+                f"{path}:frame {frame}: integrated alert requires opponent_bbox"
+            )
+        if "item_observed" not in value:
+            raise ValueError(
+                f"{path}:frame {frame}: integrated alert requires item_observed"
+            )
     if not isinstance(item_observed, bool):
         raise TypeError(f"{path}:frame {frame}: item_observed must be a boolean")
-    return _PredictedAlert(
+    return _Prediction(
         label=str(_require_key(value, "label", path, frame)),
-        opponent_bbox=_parse_bbox(
-            _require_key(value, "opponent_bbox", path, frame),
-            path,
-            frame,
-            "opponent_bbox",
-        ),
+        opponent_bbox=opponent_bbox,
         item_bbox=_parse_bbox(
             _require_key(value, "item_bbox", path, frame),
             path,
@@ -296,7 +378,7 @@ def _parse_predicted_alert(
 
 def _match_frame(
     truth: tuple[_TruthObject, ...],
-    predictions: tuple[_PredictedAlert, ...],
+    predictions: tuple[_Prediction, ...],
     truth_indexes: tuple[int, ...],
     prediction_indexes: tuple[int, ...],
     iou_threshold: float,
@@ -360,12 +442,15 @@ def _truth_bbox(truth: _TruthObject, bbox_kind: str) -> BoundingBox:
     return bbox
 
 
-def _prediction_bbox(prediction: _PredictedAlert, bbox_kind: str) -> BoundingBox:
-    return (
+def _prediction_bbox(prediction: _Prediction, bbox_kind: str) -> BoundingBox:
+    bbox = (
         prediction.opponent_bbox
         if bbox_kind == "opponent"
         else prediction.item_bbox
     )
+    if bbox is None:
+        raise ValueError(f"prediction record is missing {bbox_kind}_bbox")
+    return bbox
 
 
 def _bbox_iou(left: BoundingBox, right: BoundingBox) -> float:

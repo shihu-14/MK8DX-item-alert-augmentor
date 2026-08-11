@@ -8,17 +8,11 @@ description: Use for MK8DX held-item detection, YOLO training/inference, OpenCV 
 ## Working Rules
 
 - Read the project specifications relevant to the task before changing code.
-- Keep the legacy six-class output described as candidate detection only.
-- Claim opponent-held state only after integrated opponent association and
-  temporal confirmation.
-- Preserve raw model labels and numeric order.
 - Do not add compatibility entrypoints or experimental snapshots; use Git
   history for obsolete code.
-- Keep model loading, capture, network access, display, writing, and training
-  out of import-time code.
-- Keep model binaries, datasets, videos, runs, and generated predictions out of
-  Git.
 - Never infer metrics or artifact rights that are not recorded.
+- Follow the linked project specifications instead of restating their
+  contracts in Skill references.
 
 ## Task Workflow
 
@@ -27,7 +21,7 @@ description: Use for MK8DX held-item detection, YOLO training/inference, OpenCV 
 - Evaluation changes: read the evaluation protocol and held association spec.
 - Model changes: read training guidance, artifact policy, model registry, and
   evaluation protocol.
-- Dataset changes: read annotation/export guidance and dataset policy.
+- Dataset changes: read dataset policy and training guidance.
 - Overlay changes: read held association and alert overlay specifications.
 
 Add focused pure-logic tests first for identity, temporal, artifact, and metric
@@ -42,14 +36,14 @@ contracts. Run the repository verification commands before reporting results.
 - Evaluation: `docs/evaluation-protocol.md`
 - Overlay: `docs/alert-overlay-spec.md`
 - Dataset policy: `docs/dataset-policy.md`
+- Artifact policy: `docs/artifact-policy.md`
+- Artifact provenance: `docs/artifact-provenance.md`
 - Model registry: `docs/model-registry.md`
 
 ## Workflow References
 
 - Realtime implementation: `references/realtime-inference.md`
 - Training: `references/yolo-training.md`
-- Annotation/export: `references/annotation-export.md`
-- Artifacts: `references/artifact-policy.md`
 
 ## Done Criteria
 

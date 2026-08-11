@@ -50,7 +50,7 @@ def test_evaluate_command_prints_false_alert_and_gate_breakdown(
         encoding="utf-8",
     )
     predictions.write_text(
-        '{"frame":1,"gate_active":true,"alerts":[]}',
+        '{"frame":1,"gate_active":true,"mode":"integrated","alerts":[]}',
         encoding="utf-8",
     )
 
@@ -65,5 +65,39 @@ def test_evaluate_command_prints_false_alert_and_gate_breakdown(
     ) == 0
 
     output = capsys.readouterr().out
+    assert "metric_scope=integrated_held_alert held_alert_precision=0.0000" in output
     assert "unclassified_fp=0" in output
     assert "gate_errors=1 gate_fp=1 gate_fn=0 gate_missing=0" in output
+
+
+def test_evaluate_command_labels_legacy_metrics_as_candidates(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    truth = tmp_path / "truth.jsonl"
+    predictions = tmp_path / "predictions.jsonl"
+    truth.write_text(
+        '{"frame":1,"objects":[{"label":"FB","state":"held",'
+        '"opponent_bbox":[0,0,100,100],"item_bbox":[10,10,20,20]}]}\n',
+        encoding="utf-8",
+    )
+    predictions.write_text(
+        '{"frame":1,"mode":"legacy","candidates":[{"label":"FB",'
+        '"confidence":0.9,"item_bbox":[10,10,20,20]}]}\n',
+        encoding="utf-8",
+    )
+
+    assert main(
+        [
+            "evaluate",
+            "--ground-truth",
+            str(truth),
+            "--predictions",
+            str(predictions),
+        ]
+    ) == 0
+
+    output = capsys.readouterr().out
+    assert "metric_scope=legacy_candidate candidate_precision=1.0000" in output
+    assert "candidate_recall=1.0000" in output
+    assert "held_alert" not in output

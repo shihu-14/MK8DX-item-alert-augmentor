@@ -12,7 +12,8 @@ a centered bottom row. Each icon has a visible rank badge:
 - Position and copy bounds are clipped to the frame.
 
 The rank is not race position or absolute distance. Legacy item-only mode uses
-the same layout but remains a candidate-alert compatibility behavior.
+the same layout but remains candidate display behavior, not confirmed
+opponent-held evidence.
 
 Track state is keyed by opponent ID. Two opponents holding the same item
 produce independent alerts. Confirmed state persists for the configured TTL.

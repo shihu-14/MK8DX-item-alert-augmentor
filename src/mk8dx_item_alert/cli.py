@@ -55,7 +55,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     evaluate_parser = commands.add_parser(
         "evaluate",
-        help="Evaluate JSONL held-item alert records.",
+        help="Evaluate JSONL legacy candidates or integrated held alerts.",
     )
     evaluate_parser.add_argument("--ground-truth", type=Path, required=True)
     evaluate_parser.add_argument("--predictions", type=Path, required=True)
@@ -131,10 +131,18 @@ def _evaluate_command(args: argparse.Namespace) -> int:
         args.predictions,
         iou_threshold=args.iou_threshold,
     )
+    metric_prefix = (
+        "candidate"
+        if report.metric_scope == "legacy_candidate"
+        else "held_alert"
+    )
     print(
-        f"precision={report.precision:.4f} recall={report.recall:.4f} "
-        f"tp={report.true_positive} fp={report.false_positive} "
-        f"fn={report.false_negative} "
+        f"metric_scope={report.metric_scope} "
+        f"{metric_prefix}_precision={report.precision:.4f} "
+        f"{metric_prefix}_recall={report.recall:.4f} "
+        f"{metric_prefix}_tp={report.true_positive} "
+        f"{metric_prefix}_fp={report.false_positive} "
+        f"{metric_prefix}_fn={report.false_negative} "
         f"unclassified_fp={report.unclassified_false_positive} "
         f"gate_errors={report.gate_errors} "
         f"gate_fp={report.gate_false_positive} "
@@ -142,9 +150,12 @@ def _evaluate_command(args: argparse.Namespace) -> int:
         f"gate_missing={report.missing_gate_prediction}"
     )
     if report.average_lead_frames is not None:
-        print(f"average_lead_frames={report.average_lead_frames:.2f}")
-        for event_id, lead_frames in report.lead_frames_by_event.items():
-            print(f"lead_frames[{event_id}]={lead_frames}")
+        print(
+            f"average_{metric_prefix}_lead_frames="
+            f"{report.average_lead_frames:.2f}"
+        )
+    for event_id, lead_frames in report.lead_frames_by_event.items():
+        print(f"{metric_prefix}_lead_frames[{event_id}]={lead_frames}")
     for state, count in report.false_alerts_by_state.items():
         print(f"false_alert[{state}]={count}")
     return 0

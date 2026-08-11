@@ -8,6 +8,7 @@ from mk8dx_item_alert.evaluation import (
     evaluate_jsonl,
     prediction_frame_record,
 )
+from mk8dx_item_alert.inference import Detection
 
 
 def _write_jsonl(path: Path, records: list[dict[str, object]]) -> None:
@@ -15,6 +16,15 @@ def _write_jsonl(path: Path, records: list[dict[str, object]]) -> None:
         "".join(json.dumps(record) + "\n" for record in records),
         encoding="utf-8",
     )
+
+
+def _write_predictions(
+    path: Path,
+    records: list[dict[str, object]],
+    *,
+    mode: str = "integrated",
+) -> None:
+    _write_jsonl(path, [{"mode": mode, **record} for record in records])
 
 
 def _truth_object(
@@ -28,12 +38,11 @@ def _truth_object(
     value: dict[str, object] = {
         "label": label,
         "state": state,
+        "item_bbox": bbox,
     }
     if state == "held":
         value["opponent_id"] = f"gt-{bbox[0]}"
         value["opponent_bbox"] = bbox
-    else:
-        value["item_bbox"] = bbox
     if event_id is not None:
         value["event_id"] = event_id
     if item_use_frame is not None:
@@ -66,13 +75,14 @@ def test_tracker_ids_are_not_used_as_ground_truth_identity(tmp_path: Path) -> No
         truth,
         [{"frame": 1, "objects": [_truth_object([0, 0, 100, 100])]}],
     )
-    _write_jsonl(
+    _write_predictions(
         predictions,
         [{"frame": 1, "alerts": [_prediction([0, 0, 100, 100], track_id=999)]}],
     )
 
     report = evaluate_jsonl(truth, predictions)
 
+    assert report.metric_scope == "integrated_held_alert"
     assert report.true_positive == 1
     assert report.false_positive == 0
     assert report.false_negative == 0
@@ -93,7 +103,7 @@ def test_same_label_for_two_opponents_is_matched_one_to_one(tmp_path: Path) -> N
             }
         ],
     )
-    _write_jsonl(
+    _write_predictions(
         predictions,
         [
             {
@@ -124,7 +134,7 @@ def test_gate_metrics_separate_fp_fn_and_missing(tmp_path: Path) -> None:
             {"frame": 3, "gate_active": True, "objects": []},
         ],
     )
-    _write_jsonl(
+    _write_predictions(
         predictions,
         [
             {"frame": 1, "gate_active": True, "alerts": []},
@@ -173,7 +183,7 @@ def test_lead_time_is_scoped_to_each_matched_held_event(tmp_path: Path) -> None:
             },
         ],
     )
-    _write_jsonl(
+    _write_predictions(
         predictions,
         [
             {"frame": 1, "alerts": [_prediction(bbox, track_id=1)]},
@@ -209,6 +219,122 @@ def test_runtime_prediction_record_uses_bbox_and_keeps_tracker_id_local() -> Non
     assert record["alerts"][0]["item_observed"] is False
 
 
+def test_legacy_prediction_record_emits_candidates_without_held_claims() -> None:
+    detection = Detection(
+        label="FB",
+        confidence=0.75,
+        x1=10.0,
+        y1=20.0,
+        x2=30.0,
+        y2=40.0,
+    )
+    result = SimpleNamespace(
+        gate_active=True,
+        mode="legacy",
+        detections=(detection,),
+    )
+
+    record = prediction_frame_record(3, result)
+
+    assert record == {
+        "frame": 3,
+        "gate_active": True,
+        "mode": "legacy",
+        "candidates": [
+            {
+                "label": "FB",
+                "confidence": 0.75,
+                "item_bbox": [10.0, 20.0, 30.0, 40.0],
+            }
+        ],
+    }
+
+
+def test_legacy_candidates_match_held_truth_by_item_bbox(tmp_path: Path) -> None:
+    truth = tmp_path / "truth.jsonl"
+    predictions = tmp_path / "predictions.jsonl"
+    _write_jsonl(
+        truth,
+        [
+            {
+                "frame": 1,
+                "objects": [
+                    _truth_object(
+                        [10, 10, 30, 30],
+                        event_id="held-1",
+                        item_use_frame=5,
+                    )
+                ],
+            }
+        ],
+    )
+    _write_predictions(
+        predictions,
+        [
+            {
+                "frame": 1,
+                "candidates": [
+                    {
+                        "label": "FB",
+                        "confidence": 0.9,
+                        "item_bbox": [10, 10, 30, 30],
+                    }
+                ],
+            }
+        ],
+        mode="legacy",
+    )
+
+    report = evaluate_jsonl(truth, predictions)
+
+    assert report.metric_scope == "legacy_candidate"
+    assert report.true_positive == 1
+    assert report.precision == 1.0
+    assert report.recall == 1.0
+    assert report.lead_frames_by_event == {"held-1": 4}
+
+
+def test_legacy_candidate_false_positive_uses_negative_item_bbox(
+    tmp_path: Path,
+) -> None:
+    truth = tmp_path / "truth.jsonl"
+    predictions = tmp_path / "predictions.jsonl"
+    _write_jsonl(
+        truth,
+        [
+            {
+                "frame": 1,
+                "objects": [
+                    _truth_object([50, 50, 80, 80], state="background")
+                ],
+            }
+        ],
+    )
+    _write_predictions(
+        predictions,
+        [
+            {
+                "frame": 1,
+                "candidates": [
+                    {
+                        "label": "FB",
+                        "confidence": 0.8,
+                        "item_bbox": [50, 50, 80, 80],
+                    }
+                ],
+            }
+        ],
+        mode="legacy",
+    )
+
+    report = evaluate_jsonl(truth, predictions)
+
+    assert report.metric_scope == "legacy_candidate"
+    assert report.false_positive == 1
+    assert report.false_alerts_by_state == {"background": 1}
+    assert report.unclassified_false_positive == 0
+
+
 @pytest.mark.parametrize("state", ["thrown", "dropped", "background", "hud"])
 def test_negative_without_opponent_is_classified_by_item_bbox(
     tmp_path: Path,
@@ -221,7 +347,7 @@ def test_negative_without_opponent_is_classified_by_item_bbox(
         truth,
         [{"frame": 1, "objects": [_truth_object(item_bbox, state=state)]}],
     )
-    _write_jsonl(
+    _write_predictions(
         predictions,
         [
             {
@@ -250,7 +376,7 @@ def test_unmatched_prediction_is_reported_as_unclassified_false_positive(
     truth = tmp_path / "truth.jsonl"
     predictions = tmp_path / "predictions.jsonl"
     _write_jsonl(truth, [{"frame": 1, "objects": []}])
-    _write_jsonl(
+    _write_predictions(
         predictions,
         [{"frame": 1, "alerts": [_prediction([0, 0, 100, 100], track_id=1)]}],
     )
@@ -274,7 +400,7 @@ def test_persistent_ttl_alert_is_counted_on_each_output_frame(
             {"frame": 2, "objects": [_truth_object([20, 0, 140, 120])]},
         ],
     )
-    _write_jsonl(
+    _write_predictions(
         predictions,
         [
             {"frame": 1, "alerts": [_prediction([0, 0, 100, 100], track_id=5)]},
@@ -322,7 +448,7 @@ def test_event_identity_rejects_inconsistent_labels(tmp_path: Path) -> None:
             },
         ],
     )
-    _write_jsonl(predictions, [])
+    _write_predictions(predictions, [{"frame": 1, "alerts": []}])
 
     with pytest.raises(ValueError, match="inconsistent label/use frame"):
         evaluate_jsonl(truth, predictions)

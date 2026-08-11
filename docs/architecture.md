@@ -25,8 +25,12 @@
 - `AssociatedItem` binds one item detection to one opponent track for a frame.
 - `TrackAlert` retains temporal state, current opponent geometry, and the last
   supporting item-detection geometry.
-- `RankedAlert` is display- and evaluation-ready alert state.
+- `RankedAlert` is display state and the source for integrated alert records.
 - `FrameResult` carries detections, associations, alerts, mode, and timings.
+
+The prediction writer serializes raw `Detection` values as legacy candidates
+and confirmed `RankedAlert` values as integrated held alerts. Their metric
+scopes are separate under `docs/evaluation-protocol.md`.
 
 Ultralytics result objects do not escape `inference.py`. OpenCV frames remain
 array-like at module boundaries. Runtime tracker IDs are diagnostics and are
