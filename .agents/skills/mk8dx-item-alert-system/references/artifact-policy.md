@@ -1,34 +1,28 @@
 # Artifact Policy
 
-## Default Rule
+## Git
 
-Do not newly commit raw videos, datasets, YOLO runs, generated videos, debug
-dumps, predictions, or model checkpoints by default. These artifacts are often
-large, machine-specific, or derived from local experiments.
+Track source, tests, docs, model metadata, hashes, and selected lightweight
+evidence. Do not track:
 
-## Expected Local Paths
+- Dataset contents or exported YOLO data.
+- Raw or generated gameplay videos.
+- YOLO runs, predictions, debug frames, or benchmark output.
+- Virtual environments and caches.
+- PT, ONNX, or engine model binaries.
 
-Use local-only paths such as:
+## Runtime Models
 
-- `data/raw/`
-- `data/annotated/`
-- `data/yolo/`
-- `data/samples/`
-- `datasets/`
-- `runs/`
-- `outputs/`
-- `debug_frames/`
+Store local binaries under ignored `models/`. The tracked manifest defines
+semantic filenames, role, version, label order, dataset, size, SHA-256, release
+name, and publication URL.
 
-`data/README.md` may be committed to document local layout.
+Approved models are versioned GitHub Release assets. Runtime never downloads
+implicitly; users call `mk8dx-alert models install`. Verify size and SHA-256
+before loading.
 
-## Existing Artifacts
+Keep `release_url` empty and publication status pending until model and data
+provenance, upstream terms, and redistribution authorization are recorded.
 
-The current repository may already track some checkpoints and run images. Do not
-remove or replace existing tracked artifacts without an explicit task. Document
-them in the model registry and artifact policy instead.
-
-## Sharing Results
-
-Prefer lightweight summaries, metrics tables, and selected small illustrative
-images. Use external storage or a release process for large checkpoints or video
-artifacts when needed.
+Existing historical binary blobs remain in Git history. Do not rewrite history
+without a separate explicit authorization.

@@ -1,73 +1,32 @@
 # Realtime Runtime
 
-## Input Assumptions
+`mk8dx-alert run` is the only supported entrypoint. It opens a camera index or
+video path, derives fixed regions from the first frame, processes that frame
+without discarding it, and releases capture, writer, and windows on exit.
 
-The current prototype uses OpenCV capture through `cv2.VideoCapture(0)`.
-Depending on the local setup, this may refer to a camera, capture card, or
-virtual camera. Realtime behavior depends on the input device, frame size, and
-system performance.
+The runtime loads models and alert icons before the loop. The frame processor
+reuses a static mask, optionally runs the gate, normalizes detections, performs
+association/tracking/ranking, and returns display-ready alerts.
 
-The refactored runtime lives in `mk8dx_item_alert.runtime.run_realtime`.
-Use `python scripts/run_realtime.py` for the script entrypoint. `python
-detect.py` remains a compatibility wrapper.
-
-## Frame Size Assumptions
-
-The realtime runtime derives frame width and height from the first captured
-frame, then uses config defaults that preserve the original proportional and
-fixed regions. Any change in capture resolution, layout, or crop can require
-recalibration.
-
-## Gate Region
-
-The current prototype uses a fixed gate/face region to decide whether item
-detection should run. This is a proxy for the gameplay condition where the
-player briefly checks rear view or a face/button-like visual cue appears.
-
-Future config should expose:
-
-- Gate region center and size.
-- Gate threshold.
-- Gate model path.
-- Option to disable gate detection for offline evaluation.
-
-See `docs/configuration-spec.md` for the broader configuration target.
-
-## Item Detection Region
-
-The prototype masks upper and lower screen regions and masks the gate region
-before running item detection. Future config should expose:
-
-- Upper/lower crop ratios.
-- Additional ignored regions.
-- Input image size.
-- Confidence threshold.
-
-These values should move into config gradually while preserving current
-behavior.
-
-## Command-Line Options
-
-The first refactored script exposes:
+## Options
 
 ```text
 --source
+--item-model
+--gate-model
+--no-gate
 --no-save
 --debug
+--profile
 ```
 
-Configuration design is documented in `docs/configuration-spec.md`. The first
-implementation pass uses dataclass defaults and does not load TOML/YAML config
-files yet.
+`--profile` reports average and p95 gate, item, writer, and total frame time.
+The benchmark target is 30 FPS with p95 frame latency at or below 100 ms for a
+fixed 1080p source. No result is claimed until tested on the target hardware.
 
-## Runtime Boundaries
+Video writing is enabled by default and writes under ignored `outputs/`.
+Disable it when measuring inference latency.
 
-Keep these concerns separable:
-
-- Capture.
-- Gate inference.
-- Item inference.
-- Alert state/smoothing.
-- Overlay rendering.
-- Display.
-- Video writing.
+Ultralytics ByteTrack requires the declared `lap` dependency. The runtime
+checks for it before tracking and refuses Ultralytics' implicit installation
+path if the environment is incomplete.

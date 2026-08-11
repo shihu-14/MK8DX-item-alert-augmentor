@@ -1,111 +1,82 @@
-# MK8DX Item Detection
+# MK8DX Item Alert Augmentor
 
-This repository is a local research prototype for an item-alert augmentation
-system for Mario Kart 8 Deluxe. It detects opponent-held items from a live
-gameplay or camera feed and renders alert icons on the realtime video output.
+A local research prototype that detects item candidates visible around Mario
+Kart 8 Deluxe opponents and renders clearer alerts on captured gameplay.
 
-The project is not a generic object-detection demo. The core motivation is that
-opponents visibly hold items before throwing or activating them. Seeing that
-held item early can provide a clearer warning than alerts that appear only after
-an item is already active.
+The checked-in runtime models are intentionally not described as full
+held-item detection. The current six-class item model sees item-like objects,
+and the one-class gate model detects the configured `Face` cue. A true held
+alert requires the integrated seven-class model, opponent tracking, spatial
+association, and temporal confirmation implemented by this repository.
 
-## Current Prototype Status
-
-- `scripts/run_realtime.py` is the refactored realtime script entrypoint.
-- `detect.py` remains a compatibility entrypoint.
-- `src/mk8dx_item_alert/runtime.py` contains the refactored realtime loop.
-- Historical experimental snapshots live under `archive/experimental/`.
-- `train.py` is the current YOLO training-history/reference script.
-- The prototype uses OpenCV and Ultralytics YOLO.
-- It captures frames, applies a face/button-like gate region, runs item
-  detection, maps detected classes to alert image files, and overlays alert
-  icons.
-
-The current prototype detects item-like objects in selected regions. It does not
-yet fully prove that a detected item is held by a specific opponent rather than
-thrown, dropped, or part of the course background.
-
-## Required Local Files
-
-Runtime depends on local model checkpoints and alert image files. Current
-prototype paths include:
-
-- `runs/detect/train/weights/best_29.pt` for item detection.
-- `runs/detect/train/weights/best_30.pt` for gate/face detection.
-- Alert icons under `assets/icons/alerts/`, such as `Piranha-Plant.png`,
-  `Super-Horn.png`, `FB.png`, `Boomerang.png`, `Minacle-Eight.png`, and
-  `Green-Shell3.png`.
-
-Some checkpoints are currently tracked for continuity, but new model artifacts
-should not be committed by default. See `docs/model-registry.md` and
-`docs/dataset-policy.md`.
-
-Annotation is external to this repository workflow. Exported YOLO datasets
-should follow `docs/dataset-policy.md` and
-`.agents/skills/mk8dx-item-alert-system/references/annotation-export.md`.
+This project is for local research, offline evaluation, and documentation, not
+unfair online competitive use.
 
 ## Setup
 
-Create a local Python environment and install dependencies:
+Python 3.11 or newer is required.
 
 ```bash
-python -m venv yolovenv
-source yolovenv/bin/activate
-pip install -e ".[dev]"
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
 ```
 
-If editable install is not needed:
+## Models
+
+Model binaries are ignored by Git. Authorized local copies belong in
+`models/` using the filenames in `models/manifest.toml`.
 
 ```bash
-pip install opencv-python numpy ultralytics
+mk8dx-alert models verify
+mk8dx-alert models install
 ```
 
-## Run
+Installation is currently unavailable because the Release URLs remain empty
+until redistribution rights are confirmed. Runtime never downloads models
+implicitly.
 
-The refactored realtime prototype can be run with:
+Current local model roles:
+
+- `mk8dx-item-yolov8n-v9.pt`: legacy six-class item detector.
+- `mk8dx-gate-yolov8n-v5.pt`: one-class gate detector.
+
+## Realtime
 
 ```bash
-python scripts/run_realtime.py
+mk8dx-alert run --source 0
+mk8dx-alert run --source gameplay.mp4 --no-save --profile
 ```
 
-The original command remains supported as a compatibility entrypoint:
+Use `--no-gate` to evaluate without the rear-view gate. Use `--item-model`
+or `--gate-model` for an explicit local checkpoint. Legacy mode prints a
+warning because item detections are not proof of held state.
+
+## Training And Evaluation
 
 ```bash
-python detect.py
+python scripts/validate_dataset.py data/yolo/<dataset-version>
+python scripts/train_yolo.py --data data/yolo/<dataset-version>/data.yaml
+mk8dx-alert evaluate --ground-truth truth.jsonl --predictions predictions.jsonl
 ```
 
-The first refactor pass also supports a minimal CLI:
+The integrated model uses the existing six item labels in their current order
+and appends `Opponent`. Only held, dragged, or orbiting items are positives;
+thrown, dropped, course, background, and HUD examples are negatives.
+
+Integrated ByteTrack mode uses the declared `lap` dependency. The runtime
+still checks for it explicitly and never invokes Ultralytics' auto-installer.
+
+## Development
 
 ```bash
-python scripts/run_realtime.py --source 0 --no-save --debug
+pytest -q
+RUFF_CACHE_DIR=/tmp/mk8dx-ruff ruff check .
 ```
 
-Realtime use depends on local camera/gameplay capture setup, frame size, gate
-region calibration, and checkpoint availability.
+See `docs/system-spec.md`, `docs/model-registry.md`,
+`docs/evaluation-protocol.md`, and the repository Skill under
+`.agents/skills/mk8dx-item-alert-system/`.
 
-## Documentation
-
-- System spec: `docs/system-spec.md`
-- Class labels: `docs/class-labels.md`
-- Model registry: `docs/model-registry.md`
-- Configuration spec: `docs/configuration-spec.md`
-- Dataset policy: `docs/dataset-policy.md`
-- Evaluation protocol: `docs/evaluation-protocol.md`
-- Realtime runtime: `docs/realtime-runtime.md`
-- Alert overlay: `docs/alert-overlay-spec.md`
-- Local data layout: `data/README.md`
-
-YOLO metrics are necessary but not sufficient for this project. Evaluation also
-needs held-item alert behavior, including early alerts, missed held items,
-thrown/dropped/background false alerts, gate errors, FPS, and latency.
-
-## Artifact Policy
-
-Raw videos, datasets, generated videos, debug dumps, prediction outputs, YOLO
-runs, and new model checkpoints should stay local unless a task explicitly asks
-to publish them. Keep lightweight documentation and reproducible notes in git.
-
-## Scope
-
-This project is intended for local research, offline testing, and documentation.
-It should not be used to create unfair online competitive assistance.
+Model and icon provenance is not yet established. Do not publish those
+artifacts until `docs/artifact-provenance.md` records authorization.

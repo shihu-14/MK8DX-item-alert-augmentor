@@ -1,66 +1,38 @@
 # Evaluation Protocol
 
-## Detection Metrics
+## Separate Evidence
 
-Record standard YOLO metrics for item and gate models:
+Report these independently:
 
-- Precision.
-- Recall.
-- mAP50.
-- mAP50-95.
-- Confusion matrix.
-
-Keep metrics tied to a specific checkpoint, dataset version, label set, image
-size, and confidence threshold.
-
-## Metric Scope
-
-YOLO metrics such as precision, recall, mAP50, and mAP50-95 evaluate
-bounding-box detection quality. They do not, by themselves, prove that the
-system succeeds as a held-item alert system.
-
-Project-level evaluation must also measure:
-
-- Correct early alert for opponent-held items.
-- False alert on thrown, dropped, or background items.
-- Missed held items.
-- Alert timing before item use.
+- YOLO precision, recall, mAP50, mAP50-95, and confusion matrix.
+- Held-alert precision and recall.
+- False alerts for thrown, dropped, background/course, and HUD states.
 - Gate false positives and false negatives.
-- Realtime FPS and latency.
+- Alert lead frames/time before item use.
+- Effective FPS and average/p95 stage and frame latency.
 
-When reporting improvements, separate model-level detection metrics, runtime
-pipeline metrics, and held-item alert behavior metrics. Do not invent numbers.
+Model mAP does not prove held association or realtime performance.
 
-## Runtime Metrics
+## JSONL Contract
 
-For realtime changes, record:
+Ground-truth records contain `frame`, `track_id`, `label`, and `state`.
+`state` is one of `held`, `thrown`, `dropped`, `background`, or
+`hud`. Optional `gate_active` records gate truth and `item_use_frame`
+enables average alert lead-frame reporting.
 
-- FPS.
-- Average latency.
-- Per-stage latency when possible.
-- False alerts.
-- Missed held items.
-- Gate false positives.
-- Gate false negatives.
+Prediction records contain `frame`, `track_id`, and `label`, with optional
+`gate_active`. Evaluate with:
 
-## Held-Item Evaluation
+```bash
+mk8dx-alert evaluate --ground-truth truth.jsonl --predictions predictions.jsonl
+```
 
-Because this project targets held items, evaluate separately from generic item
-detection:
+## Promotion Gates
 
-- Correct alert for an opponent-held item.
-- No alert for dropped road items.
-- No alert for thrown/projectile items unless explicitly intended.
-- No alert for course decoration or HUD elements.
-- Correct handling of multiple simultaneous detections.
+Compare legacy and integrated modes on the same fixed clips. Promote only when
+held recall falls by no more than two percentage points and non-held false
+alerts improve. Record failures even when aggregate metrics pass.
 
-## Before/After Requirement
-
-When changing detection logic, compare before and after using the same sample
-set or video segment. Report only metrics that were actually measured.
-
-## Evidence Policy
-
-Do not claim training, inference, or evaluation was run unless the command was
-actually executed and the output was inspected. If only documentation changed,
-say that no runtime evaluation was performed.
+For the target Mac and fixed 1080p input, profile with video saving disabled.
+The initial runtime target is at least 30 effective FPS and p95 frame latency at
+or below 100 ms. Do not report success until measured.

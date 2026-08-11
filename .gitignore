@@ -1,6 +1,7 @@
 .DS_Store
 __pycache__/
 *.py[cod]
+*.egg-info/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
@@ -23,9 +24,12 @@ outputs/
 predictions/
 debug_frames/
 debug/
+benchmarks/
 
-# Model/export artifacts. Existing tracked files remain tracked; do not add new
-# checkpoints by default.
+# Model/export artifacts. Manifests and documentation remain tracked.
+models/*.pt
+models/*.onnx
+models/*.engine
 *.pt
 *.onnx
 *.engine

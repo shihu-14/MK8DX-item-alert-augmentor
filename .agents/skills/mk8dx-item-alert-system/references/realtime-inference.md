@@ -1,54 +1,30 @@
 # Realtime Inference Guidance
 
-## Low-Latency Principles
+## Frame Loop
 
-Realtime performance matters because the held item may be visible only briefly.
-The runtime should minimize avoidable latency and make expensive steps optional.
-
-## Frame Loop Rules
-
-- Load models before entering the frame loop.
-- Avoid blocking I/O inside the frame loop.
-- Keep capture, inference, overlay, and video writing separable.
-- Make video writing optional because it can affect latency.
-- Avoid per-frame debug printing unless a debug flag is enabled.
-- Reuse resized icons and static masks where practical.
-
-## Configurable Runtime Values
-
-Move these values into config gradually:
-
-- Camera/input source.
-- FPS target.
-- Input image size.
-- Item confidence threshold.
-- Gate confidence threshold.
-- Gate/crop regions.
-- Item detection mask regions.
-- Alert duration.
-- Output path.
-- Debug flag.
-
-## Frame Skipping And Smoothing
-
-If inference is slower than capture:
-
-- Run YOLO every N frames and track/stabilize alerts between detections.
-- Keep recent detections for a short TTL.
-- Require detections to persist for multiple frames before high-confidence
-  alerts.
-- Decay alerts quickly when no supporting detections appear.
+- Load and validate models before capture starts.
+- Build static masks once per frame size.
+- Use the gate only when configured and measure gate errors separately.
+- Use ByteTrack only with the integrated seven-class detector.
+- Keep display and video writing outside frame processing.
+- Never download a model or print per-frame diagnostics implicitly.
 
 ## Profiling
 
-When optimizing, measure:
+`--profile` reports average and p95 milliseconds for gate inference, item
+inference, video writing, and the full processed frame. Benchmark with saving
+disabled unless measuring writer cost.
 
-- Capture time.
-- Gate inference time.
-- Item inference time.
-- Overlay time.
-- Video writing time.
-- End-to-end frame latency.
-- Effective FPS.
+The initial performance target is 30 effective FPS and p95 end-to-end frame
+latency at or below 100 ms for a fixed 1080p input on the target machine. Record
+hardware, input, package versions, and command. Do not claim this target from
+model-reported inference time alone.
 
-Do not claim FPS or latency improvements unless they were measured.
+## Optimization Order
+
+1. Disable optional video writing.
+2. Reuse masks and icon assets.
+3. Profile gate and item inference independently.
+4. Reduce model input size only with before/after accuracy evidence.
+5. Add frame skipping and track interpolation only if measured processing is
+   slower than capture.

@@ -1,0 +1,30 @@
+schema_version = 1
+release = "models-v1"
+publication_status = "pending-rights-review"
+
+[[models]]
+role = "item"
+version = "v9"
+filename = "mk8dx-item-yolov8n-v9.pt"
+sha256 = "b803f3a5dafeba16b2f64fed8009909084fea5d35d0ed7b0f2a7d5c3e857ff9a"
+size = 6257066
+dataset = "Item_Detection.v9-original-v2.yolov8"
+labels = [
+  "Boomerang",
+  "FB",
+  "Minacle-Eight",
+  "Piranha-Plant",
+  "Super-Horn",
+  "green-shell3",
+]
+release_url = ""
+
+[[models]]
+role = "gate"
+version = "v5"
+filename = "mk8dx-gate-yolov8n-v5.pt"
+sha256 = "f5861a230af9d5396ca9111e9efdf58b248c9bf96ab632ae80034102608f09c3"
+size = 6255082
+dataset = "Face-Detection.v5-original-v1.yolov8"
+labels = ["Face"]
+release_url = ""

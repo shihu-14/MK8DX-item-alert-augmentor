@@ -30,32 +30,6 @@ def clip_top_left(
     return max(0, min(max_x, x)), max(0, min(max_y, y))
 
 
-def calculate_alert_position(
-    center_x: float,
-    frame_width: int,
-    frame_height: int,
-    alert_size: tuple[int, int],
-    bottom_margin: int = 10,
-) -> tuple[int, int]:
-    alert_width, alert_height = alert_size
-    x = int(center_x - alert_width // 2)
-    y = frame_height - alert_height - bottom_margin
-    return clip_top_left(x, y, (frame_width, frame_height), alert_size)
-
-
-def apply_velocity_slide(
-    position: tuple[int, int],
-    velocity_x: float,
-    elapsed_sec: float,
-    frame_width: int,
-    alert_size: tuple[int, int],
-) -> tuple[int, int]:
-    x, y = position
-    dx = int(velocity_x * elapsed_sec)
-    max_x = max(0, frame_width - alert_size[0])
-    return max(0, min(max_x, x + dx)), y
-
-
 def calculate_overlay_bounds(
     position: tuple[int, int],
     frame_size: tuple[int, int],
@@ -89,6 +63,32 @@ def calculate_overlay_bounds(
     )
 
 
+def calculate_ranked_positions(
+    count: int,
+    frame_size: tuple[int, int],
+    alert_size: tuple[int, int],
+    *,
+    gap: int = 12,
+    bottom_margin: int = 10,
+) -> tuple[tuple[int, int], ...]:
+    if count <= 0:
+        return ()
+    frame_width, frame_height = frame_size
+    alert_width, alert_height = alert_size
+    total_width = count * alert_width + max(0, count - 1) * gap
+    start_x = max(0, (frame_width - total_width) // 2)
+    y = max(0, frame_height - alert_height - bottom_margin)
+    return tuple(
+        clip_top_left(
+            start_x + index * (alert_width + gap),
+            y,
+            frame_size,
+            alert_size,
+        )
+        for index in range(count)
+    )
+
+
 def draw_icon(
     frame,
     icon,
@@ -111,3 +111,22 @@ def draw_icon(
         bounds.icon_y1 : bounds.icon_y2,
         bounds.icon_x1 : bounds.icon_x2,
     ]
+
+
+def draw_rank_badge(frame, rank: int, position: tuple[int, int]) -> None:
+    import cv2
+
+    x, y = position
+    center = (x + 14, y + 14)
+    cv2.circle(frame, center, 14, (0, 0, 0), -1)
+    cv2.circle(frame, center, 14, (255, 255, 255), 2)
+    cv2.putText(
+        frame,
+        str(rank),
+        (x + 9, y + 20),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        (255, 255, 255),
+        2,
+        cv2.LINE_AA,
+    )

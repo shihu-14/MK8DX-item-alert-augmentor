@@ -52,6 +52,17 @@ LABELS: dict[str, LabelInfo] = {
     ),
 }
 
+ITEM_MODEL_LABELS: tuple[str, ...] = (
+    "Boomerang",
+    "FB",
+    "Minacle-Eight",
+    "Piranha-Plant",
+    "Super-Horn",
+    "green-shell3",
+)
+OPPONENT_LABEL = "Opponent"
+INTEGRATED_MODEL_LABELS = ITEM_MODEL_LABELS + (OPPONENT_LABEL,)
+
 
 def get_icon_path_for_label(label: str) -> str | None:
     info = LABELS.get(label)

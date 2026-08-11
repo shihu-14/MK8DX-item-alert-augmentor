@@ -1,26 +1,22 @@
 # Model Registry
 
-Use `unknown` when a field is not documented by current files. Do not infer
-metrics from nearby runs.
+## Promoted Local Models
 
-| Checkpoint | Purpose | Used by | Dataset/version | Label set | Metrics | Artifact location | Notes |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| `runs/detect/train/weights/best_29.pt` | Item detection | `scripts/run_realtime.py`, `detect.py` | `Item_Detection.v9-original-v2.yolov8` | Boomerang, FB, Minacle-Eight, Piranha-Plant, Super-Horn, green-shell3 | all: P 0.828, R 0.778, mAP50 0.795, mAP50-95 0.49, from `train.py` notes | `runs/detect/train/weights/best_29.pt` | Current main item model. |
-| `runs/detect/train/weights/best_30.pt` | Gate/face detection | `scripts/run_realtime.py`, `detect.py` | `Face-Detection.v5-original-v1.yolov8` | Face | all: P 0.987, R 0.994, mAP50 0.992, mAP50-95 0.765, from `train.py` notes | `runs/detect/train/weights/best_30.pt` | Current main gate/face model. |
-| `runs/detect/train/weights/best_24.pt` | Item detection | Historical/reference | `Item_Detection.v8-full-items-v4.yolov8` | Boomerang, FB, Minacle-Eight, Piranha-Plant, Super-Horn, green-shell3 | all: P 0.834, R 0.746, mAP50 0.793, mAP50-95 0.454, from `train.py` notes | `runs/detect/train/weights/best_24.pt` | Historical item checkpoint. |
-| `runs/detect/train/weights/best.pt` | Item detection | `archive/experimental/main.py`, `archive/experimental/tmp1.py`, `archive/experimental/tmp2.py` | unknown | Current file appears to expose item labels, but source run is unknown | unknown | `runs/detect/train/weights/best.pt` | Ambiguous historical/latest item checkpoint. |
-| `runs/detect/train/weights/best2.pt` | Gate/face detection | `archive/experimental/tmp2.py` | unknown | Face | unknown | `runs/detect/train/weights/best2.pt` | Historical gate/face checkpoint. |
-| `yolov8n.pt` | Base/pretrained model | `train.py` | upstream/base | COCO/base labels, not documented here | not applicable | `yolov8n.pt` | Used as training base in current script. |
-| `yolov8n-face.pt` | Face model/checkpoint | `archive/experimental/tmp1.py` | unknown | unknown | unknown | `yolov8n-face.pt` | Historical experimental face model. |
+| Semantic artifact | Role | Dataset | Labels | Evidence | SHA-256 | Publication |
+| --- | --- | --- | --- | --- | --- | --- |
+| `mk8dx-item-yolov8n-v9.pt` | Legacy item candidate detection | `Item_Detection.v9-original-v2.yolov8` | Six item labels | P 0.828, R 0.778, mAP50 0.795, mAP50-95 0.49; copied from preserved training output | `b803f3a5dafeba16b2f64fed8009909084fea5d35d0ed7b0f2a7d5c3e857ff9a` | Local only, rights review pending |
+| `mk8dx-gate-yolov8n-v5.pt` | Face/rear-view gate proxy | `Face-Detection.v5-original-v1.yolov8` | Face | P 0.987, R 0.994, mAP50 0.992, mAP50-95 0.765; copied from preserved training output | `f5861a230af9d5396ca9111e9efdf58b248c9bf96ab632ae80034102608f09c3` | Local only, rights review pending |
 
-## Registry Maintenance
+These metrics are model-level validation results, not held-item, gate-state,
+FPS, or latency evidence. Current confusion matrices are under
+`docs/model-evidence/`.
 
-For each new checkpoint, record:
+## Planned Integrated Model
 
-- Purpose and intended entrypoint.
-- Dataset version and label set.
-- Train command/config.
-- Precision, recall, mAP50, mAP50-95.
-- Confusion matrix location.
-- Known failure cases.
-- Whether it is committed, local-only, or stored externally.
+The seven-class model has no promoted checkpoint yet. Its labels are the six
+legacy item labels followed by `Opponent`. Do not add it to the manifest until
+dataset validation, model evaluation, held-alert comparison, hash recording,
+and redistribution review are complete.
+
+Historical `best*.pt`, upstream base weights, and experimental face weights
+remain available through Git history but are not current artifacts.

@@ -1,34 +1,28 @@
 from mk8dx_item_alert.overlay import (
     OverlayBounds,
-    apply_velocity_slide,
     calculate_overlay_bounds,
-    calculate_alert_position,
+    calculate_ranked_positions,
     clip_top_left,
 )
-
-
-def test_alert_position_uses_bottom_margin_and_center_x() -> None:
-    assert calculate_alert_position(100, 1920, 1080, (150, 150)) == (25, 920)
-
-
-def test_alert_position_clips_to_frame_edges() -> None:
-    assert calculate_alert_position(10, 1920, 1080, (150, 150)) == (0, 920)
-    assert calculate_alert_position(2000, 1920, 1080, (150, 150)) == (1770, 920)
 
 
 def test_clip_top_left_handles_overlay_larger_than_frame() -> None:
     assert clip_top_left(50, 50, (100, 100), (150, 150)) == (0, 0)
 
 
-def test_velocity_slide_clips_horizontal_motion() -> None:
-    assert apply_velocity_slide((1770, 920), 400.0, 2.0, 1920, (150, 150)) == (
-        1770,
-        920,
-    )
-    assert apply_velocity_slide((25, 920), -400.0, 2.0, 1920, (150, 150)) == (
-        0,
-        920,
-    )
+def test_ranked_positions_are_centered_and_bottom_aligned() -> None:
+    assert calculate_ranked_positions(
+        3,
+        (600, 400),
+        (96, 96),
+        gap=12,
+        bottom_margin=10,
+    ) == ((144, 294), (252, 294), (360, 294))
+
+
+def test_ranked_positions_clip_when_frame_is_narrow() -> None:
+    positions = calculate_ranked_positions(3, (200, 100), (96, 96), gap=12)
+    assert positions == ((0, 0), (104, 0), (104, 0))
 
 
 def test_overlay_bounds_clip_visible_frame_and_icon_regions() -> None:

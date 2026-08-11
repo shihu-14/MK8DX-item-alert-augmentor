@@ -1,119 +1,91 @@
 ---
 name: mk8dx-item-alert-system
-description: Use for MK8DX item alert work, held item detection, YOLO training/inference, OpenCV realtime capture, face/button-gated detection, alert overlay rendering, realtime FPS/latency improvement, model registry updates, evaluation protocol, and refactoring the detection pipeline.
+description: Use for MK8DX held-item detection, YOLO training/inference, OpenCV capture, gate detection, opponent association, alert ranking, model distribution, evaluation, and runtime refactoring.
 ---
 
 # MK8DX Item Alert System
 
-This repository is an early-alert augmentation for held Mario Kart 8 Deluxe
-items. It is not a generic object detection project. The goal is to detect an
-opponent's currently held item from the gameplay screen before it is thrown,
-dropped, or activated, then render a visible alert.
+## Goal And Claims
 
-## Specificity Boundary
+Build an early warning for items visibly held by opponents in Mario Kart 8
+Deluxe. Keep held items distinct from thrown items, dropped items, course
+objects, and HUD elements.
 
-This skill describes reusable development workflows for this repository, not
-one-off fixes for a single script.
-
-Keep the skill focused on:
-
-- Runtime pipeline structure.
-- Refactoring order.
-- Training/evaluation workflow.
-- Realtime inference principles.
-- Artifact and model-management rules.
-- Done criteria.
-
-Put concrete checkpoint names, label tables, metrics, calibration values, and
-experiment notes in `docs/` or `references/`.
+The legacy six-class model detects item-like objects only. Describe its output
+as a candidate alert. Describe an alert as opponent-held only when the
+integrated model detects an opponent, association succeeds, and temporal
+confirmation passes.
 
 ## Runtime Pipeline
 
-Use this conceptual pipeline when reasoning about runtime changes:
+1. Capture a gameplay frame.
+2. Optionally evaluate the rear-view gate.
+3. Apply the static item-region mask.
+4. Run the legacy or integrated YOLO detector.
+5. Normalize YOLO output into typed detections.
+6. Associate item detections with tracked opponents.
+7. Confirm association in at least three of five inference frames.
+8. Rank confirmed opponents by estimated proximity.
+9. Render at most three fixed-layout alerts.
+10. Optionally display, write, and profile output.
 
-1. Capture a frame from gameplay/camera input.
-2. Optionally apply gate detection to determine whether item detection should
-   run.
-3. Mask or crop irrelevant screen regions.
-4. Run YOLO item detection.
-5. Map detected labels to canonical item names and alert icons.
-6. Apply confidence filtering and optional temporal stabilization.
-7. Render the alert overlay.
-8. Show or save annotated output.
+## Repository Boundaries
 
-## Refactoring Order
+- `runtime.py`: resource lifecycle and frame loop.
+- `inference.py`: Ultralytics adapter and label validation.
+- `pipeline.py`: gate, mask, detection, and per-frame orchestration.
+- `association.py`: opponent/item spatial association.
+- `tracking.py`: per-opponent temporal state.
+- `ranking.py`: estimated-distance ordering.
+- `overlay.py`: placement, clipping, and drawing.
+- `model_store.py`: explicit model verification and installation.
+- `scripts/train_yolo.py`: training only.
+- `scripts/validate_dataset.py`: exported dataset validation.
 
-Refactor in this order unless a task gives a more specific direction:
+Do not add compatibility entrypoints or experimental snapshots. Use Git history
+for obsolete code.
 
-1. Preserve behavior from `detect.py`.
-2. Centralize config.
-3. Extract model loading.
-4. Extract gate detection.
-5. Extract item detection.
-6. Extract alert overlay rendering.
-7. Add CLI scripts.
-8. Add tests for pure logic.
-9. Document runtime assumptions.
+## Model And Artifact Rules
 
-## Working Guidance
+- Preserve the six existing raw item labels and their numeric order.
+- Append `Opponent` as class 6 in an integrated seven-class model.
+- Keep `.pt`, datasets, videos, runs, and generated output out of Git.
+- Record promoted artifacts in `models/manifest.toml` and
+  `docs/model-registry.md`.
+- Use versioned GitHub Release assets after redistribution rights are confirmed.
+- Runtime must not perform implicit downloads.
+- Use unknown for undocumented evidence and never infer metrics.
 
-- Treat `scripts/run_realtime.py` as the current refactored realtime script.
-- Treat `detect.py` as the compatibility entrypoint.
-- Treat `train.py` as the training-history/reference script.
-- Treat `archive/experimental/main.py`, `archive/experimental/tmp1.py`, and
-  `archive/experimental/tmp2.py` as historical experimental snapshots.
-- Do not rename model labels in code without a compatibility mapping.
-- Keep dataset paths configurable.
-- Do not invent metrics, benchmark results, or evaluation status.
-- Avoid adding new large artifacts to git.
-- Prefer behavior-preserving extraction before redesign.
+## Evaluation Rules
 
-## Specific Guidance
-
-- YOLO training scripts: keep dataset path, model base, image size, epochs, and
-  augmentations configurable; record the command and metrics for each run.
-- Model/checkpoint tracking: update `docs/model-registry.md` whenever a
-  checkpoint is added, replaced, or promoted for runtime use.
-- Realtime inference performance: load models outside the frame loop, make video
-  writing optional, gate expensive inference, and measure FPS/latency before
-  claiming improvement.
-- Alert overlay behavior: document icon mapping, confidence threshold, display
-  duration, placement, smoothing, and multiple-detection priority rules.
-- Class-label mapping: preserve raw model labels and map them to canonical names
-  in configuration or pure helper functions.
-- Dataset artifact policy: keep datasets, raw videos, frame dumps, and new
-  checkpoints local unless explicitly requested.
-- Python style: use typed functions where practical, avoid import-time side
-  effects, and use config/dataclass objects for paths, thresholds, and regions.
+- Validate a dataset before training.
+- Compare legacy and integrated behavior on the same held/non-held clips.
+- Report model metrics separately from held-alert metrics.
+- Measure thrown, dropped, background, and HUD false alerts.
+- Measure gate errors, lead timing, effective FPS, and p95 frame latency.
+- Do not claim the 30 FPS / 100 ms target without a fixed 1080p benchmark.
 
 ## Topic References
 
-- System overview: `references/system-overview.md`
-- YOLO training: `references/yolo-training.md`
-- Realtime inference: `references/realtime-inference.md`
-- Model registry: `references/model-registry.md`
-- Artifact policy: `references/artifact-policy.md`
-- Python style: `references/python-style.md`
+- System behavior: `docs/system-spec.md`
+- Runtime architecture: `references/runtime-architecture.md`
+- Held association: `references/held-item-association.md`
+- Realtime performance: `references/realtime-inference.md`
+- Training: `references/yolo-training.md`
 - Annotation/export: `references/annotation-export.md`
-- Configuration: `docs/configuration-spec.md`
+- Artifacts: `references/artifact-policy.md`
+- Model registry: `docs/model-registry.md`
+- Evaluation: `docs/evaluation-protocol.md`
 
-## Which Reference To Read
+## Required Reading
 
-- Runtime, refactoring, FPS, or latency work: read
-  `references/realtime-inference.md`, `references/python-style.md`, and
-  `references/system-overview.md`.
-- YOLO training or training script changes: read `references/yolo-training.md`,
-  `references/model-registry.md`, and `references/artifact-policy.md`.
-- Model/checkpoint changes: read `references/model-registry.md` and update
-  `docs/model-registry.md`.
-- Alert rendering or UI behavior: read `docs/alert-overlay-spec.md` and
-  `references/realtime-inference.md`.
-- Dataset or annotation export changes: read `docs/dataset-policy.md` and
-  `references/annotation-export.md`.
-- Config refactors: read `docs/configuration-spec.md`.
+- Runtime work: runtime architecture, held association, and realtime inference.
+- Model work: training, artifact policy, model registry, and evaluation.
+- Dataset work: annotation/export and `docs/dataset-policy.md`.
+- Overlay work: held association and `docs/alert-overlay-spec.md`.
 
 ## Done Criteria
 
-A change is done only when the requested behavior or documentation exists in the
-current tree, relevant assumptions are documented, and any claimed command,
-training run, inference run, or metric is backed by actual evidence.
+The requested behavior exists in the current tree, pure logic has tests, CLI
+and artifact checks pass, docs match the implementation, and every claimed
+metric is backed by inspected output.

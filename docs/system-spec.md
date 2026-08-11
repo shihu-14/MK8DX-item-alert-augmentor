@@ -1,50 +1,38 @@
 # System Spec
 
-## Project Purpose
+## Goal
 
-This repository builds a local item-alert augmentation system for Mario Kart 8
-Deluxe. The player can briefly check rear view and see opponents holding their
-current items, but those items are small and visible only briefly. The system
-aims to detect the opponent's currently held item from the gameplay screen and
-display a clearer alert icon.
+Detect an item while it is visibly associated with an opponent, before it is
+thrown, dropped, or activated, and render an alert ordered by estimated
+opponent proximity.
 
-## Why Held Items Matter
+Held state requires all of:
 
-Held-item detection is earlier than thrown-item alerting. Existing in-game
-alerts tend to warn after an item is incoming, thrown, or activated. This project
-tries to warn when an opponent is still holding the item.
+1. An integrated detector output for `Opponent` and a supported item.
+2. A tracker ID for the opponent.
+3. Spatial item/opponent association.
+4. Association in at least three of five inference frames.
 
-The important distinction is state:
+Thrown, dropped, background, course, and HUD detections must not produce held
+alerts.
 
-- Held: attached to or moving with an opponent.
-- Thrown/projectile: moving independently after use.
-- Dropped: placed on the road or track.
-- Background/UI: not a held opponent item.
+## Runtime Modes
 
-The current prototype detects item-like objects in selected regions. A future
-held-item classifier should use opponent association and temporal behavior.
+Legacy mode accepts the promoted six-class item model and produces candidate
+alerts for continuity. It emits a warning and must not be reported as verified
+held detection.
 
-## Current Entry Points
+Integrated mode accepts the six item labels followed by `Opponent`, uses
+ByteTrack IDs, confirms association over time, and ranks alerts.
 
-- `scripts/run_realtime.py`: current refactored realtime script.
-- `detect.py`: compatibility entrypoint for the realtime prototype.
-- `train.py`: YOLO training-history/reference script.
-- `archive/experimental/`: historical experimental snapshots.
+## Estimated Distance
 
-## Runtime Pipeline
+Distance rank is a visual heuristic, not absolute depth and not race position.
+It uses smoothed opponent bounding-box height, then box-bottom position. Item
+box size is excluded because item classes differ physically.
 
-1. Capture frame from gameplay/camera input.
-2. Optionally run gate detection to decide whether item detection should run.
-3. Mask or crop irrelevant regions.
-4. Run YOLO item detection.
-5. Map model labels to canonical item names and alert icons.
-6. Filter by confidence and optionally stabilize over time.
-7. Render alert overlay.
-8. Show and optionally save annotated output.
+## Gate
 
-## Non-Goals For The Current Documentation Pass
-
-- Do not fully rewrite the implementation.
-- Do not remove existing experimental scripts.
-- Do not rename model labels in code.
-- Do not invent benchmark results.
+The one-class `Face` detector is an optional rear-view proxy and performance
+gate. Its recorded YOLO mAP does not establish end-to-end gate correctness.
+Offline evaluation can disable it.
