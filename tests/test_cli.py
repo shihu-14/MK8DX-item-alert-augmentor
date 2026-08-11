@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from mk8dx_item_alert.cli import build_parser
+from mk8dx_item_alert.cli import build_parser, main
 
 
 def test_run_command_parses_documented_options() -> None:
@@ -37,3 +37,33 @@ def test_evaluate_command_parses_iou_threshold() -> None:
     )
 
     assert args.iou_threshold == 0.6
+
+
+def test_evaluate_command_prints_false_alert_and_gate_breakdown(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    truth = tmp_path / "truth.jsonl"
+    predictions = tmp_path / "predictions.jsonl"
+    truth.write_text(
+        '{"frame":1,"gate_active":false,"objects":[]}\n',
+        encoding="utf-8",
+    )
+    predictions.write_text(
+        '{"frame":1,"gate_active":true,"alerts":[]}',
+        encoding="utf-8",
+    )
+
+    assert main(
+        [
+            "evaluate",
+            "--ground-truth",
+            str(truth),
+            "--predictions",
+            str(predictions),
+        ]
+    ) == 0
+
+    output = capsys.readouterr().out
+    assert "unclassified_fp=0" in output
+    assert "gate_errors=1 gate_fp=1 gate_fn=0 gate_missing=0" in output

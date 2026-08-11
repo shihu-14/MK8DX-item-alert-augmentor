@@ -14,6 +14,8 @@ class RankedAlert:
     label: str
     confidence: float
     opponent_bbox: tuple[float, float, float, float] | None
+    item_bbox: tuple[float, float, float, float] | None
+    item_observed: bool
 
 
 def rank_nearest(
@@ -35,6 +37,8 @@ def rank_nearest(
             label=alert.label,
             confidence=alert.confidence,
             opponent_bbox=alert.opponent_bbox,
+            item_bbox=alert.item_bbox,
+            item_observed=alert.item_observed,
         )
         for index, alert in enumerate(ordered[:max_visible], start=1)
     )

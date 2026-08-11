@@ -21,7 +21,8 @@ Approved models are versioned GitHub Release assets. Runtime never downloads
 implicitly; users call `mk8dx-alert models install`. Verify size and SHA-256
 before loading. Explicit installation must download to a sibling temporary
 file, verify that temporary file, and atomically replace the final path only
-after validation succeeds.
+after validation succeeds. Never delete or modify an invalid existing model
+until its replacement has passed size and checksum validation.
 
 Keep `release_url` empty and publication status pending until model and data
 provenance, upstream terms, and redistribution authorization are recorded.

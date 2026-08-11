@@ -119,20 +119,20 @@ def install_models(
     installed: list[Path] = []
     for artifact in manifest.models:
         destination = artifact.path_in(model_dir)
+        temporary = destination.with_suffix(destination.suffix + ".part")
+        temporary.unlink(missing_ok=True)
         if destination.exists():
             try:
                 installed.append(verify_artifact(artifact, model_dir))
                 continue
             except ModelStoreError:
-                destination.unlink()
+                pass
         if not artifact.release_url:
             raise ModelNotPublishedError(
                 f"{artifact.filename} is pending publication; "
                 "place an authorized copy in the model directory"
             )
 
-        temporary = destination.with_suffix(destination.suffix + ".part")
-        temporary.unlink(missing_ok=True)
         try:
             with urlopen(
                 artifact.release_url,

@@ -5,7 +5,8 @@ training. The command exposes dataset path, base model, image size, epochs,
 augmentation values, seed, deterministic mode, output project/name, and device.
 
 Run `scripts/validate_dataset.py` before training. The integrated dataset must
-use the exact seven-class order documented in `held-item-association.md`.
+use the exact seven-class order documented in
+`docs/held-item-association.md`.
 After a successful run, the script writes `training-metadata.json` under the
 ignored Ultralytics run directory. It records training options, the dataset
 config path/hash, local base-model path/hash when available, and major package

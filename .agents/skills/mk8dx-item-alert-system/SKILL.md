@@ -5,92 +5,54 @@ description: Use for MK8DX held-item detection, YOLO training/inference, OpenCV 
 
 # MK8DX Item Alert System
 
-## Goal And Claims
+## Working Rules
 
-Build an early warning for items visibly held by opponents in Mario Kart 8
-Deluxe. Keep held items distinct from thrown items, dropped items, course
-objects, and HUD elements.
+- Read the project specifications relevant to the task before changing code.
+- Keep the legacy six-class output described as candidate detection only.
+- Claim opponent-held state only after integrated opponent association and
+  temporal confirmation.
+- Preserve raw model labels and numeric order.
+- Do not add compatibility entrypoints or experimental snapshots; use Git
+  history for obsolete code.
+- Keep model loading, capture, network access, display, writing, and training
+  out of import-time code.
+- Keep model binaries, datasets, videos, runs, and generated predictions out of
+  Git.
+- Never infer metrics or artifact rights that are not recorded.
 
-The legacy six-class model detects item-like objects only. Describe its output
-as a candidate alert. Describe an alert as opponent-held only when the
-integrated model detects an opponent, association succeeds, and temporal
-confirmation passes.
+## Task Workflow
 
-## Runtime Pipeline
+- Runtime changes: read architecture, held association, realtime runtime, and
+  realtime inference guidance.
+- Evaluation changes: read the evaluation protocol and held association spec.
+- Model changes: read training guidance, artifact policy, model registry, and
+  evaluation protocol.
+- Dataset changes: read annotation/export guidance and dataset policy.
+- Overlay changes: read held association and alert overlay specifications.
 
-1. Capture a gameplay frame.
-2. Optionally evaluate the rear-view gate.
-3. Apply the static item-region mask.
-4. Run the legacy or integrated YOLO detector.
-5. Normalize YOLO output into typed detections.
-6. Associate item detections with tracked opponents.
-7. Confirm association in at least three of five inference frames.
-8. Rank confirmed opponents by estimated proximity.
-9. Render at most three fixed-layout alerts.
-10. Optionally display, write, and profile output.
+Add focused pure-logic tests first for identity, temporal, artifact, and metric
+contracts. Run the repository verification commands before reporting results.
 
-## Repository Boundaries
-
-- `runtime.py`: resource lifecycle and frame loop.
-- `inference.py`: Ultralytics adapter and label validation.
-- `pipeline.py`: gate, mask, detection, and per-frame orchestration.
-- `association.py`: opponent/item spatial association.
-- `tracking.py`: per-opponent temporal state.
-- `ranking.py`: estimated-distance ordering.
-- `overlay.py`: placement, clipping, and drawing.
-- `model_store.py`: explicit model verification and installation.
-- `scripts/train_yolo.py`: training only.
-- `scripts/validate_dataset.py`: exported dataset validation.
-
-Do not add compatibility entrypoints or experimental snapshots. Use Git history
-for obsolete code.
-
-## Model And Artifact Rules
-
-- Preserve the six existing raw item labels and their numeric order.
-- Append `Opponent` as class 6 in an integrated seven-class model.
-- Keep `.pt`, datasets, videos, runs, and generated output out of Git.
-- Record promoted artifacts in `models/manifest.toml` and
-  `docs/model-registry.md`.
-- Use versioned GitHub Release assets after redistribution rights are confirmed.
-- Runtime must not perform implicit downloads.
-- Use unknown for undocumented evidence and never infer metrics.
-
-## Evaluation Rules
-
-- Validate a dataset before training.
-- Compare legacy and integrated behavior on the same held/non-held clips.
-- Report model metrics separately from held-alert metrics.
-- Measure thrown, dropped, background, and HUD false alerts.
-- Match evaluation identities by frame/label/opponent-bbox IoU, never by an
-  assumed equality between GT identity and runtime tracker ID.
-- Count missing gate predictions as errors and calculate lead timing per held
-  event from matched predictions only.
-- Measure effective FPS from processed frames/wall time and report p95
-  `processed_frame` latency using the documented runtime boundary.
-- Do not claim the 30 FPS / 100 ms target without a fixed 1080p benchmark.
-
-## Topic References
+## Project Specifications
 
 - System behavior: `docs/system-spec.md`
-- Runtime architecture: `references/runtime-architecture.md`
-- Held association: `references/held-item-association.md`
-- Realtime performance: `references/realtime-inference.md`
+- Architecture: `docs/architecture.md`
+- Held association: `docs/held-item-association.md`
+- Runtime and profiling: `docs/realtime-runtime.md`
+- Evaluation: `docs/evaluation-protocol.md`
+- Overlay: `docs/alert-overlay-spec.md`
+- Dataset policy: `docs/dataset-policy.md`
+- Model registry: `docs/model-registry.md`
+
+## Workflow References
+
+- Realtime implementation: `references/realtime-inference.md`
 - Training: `references/yolo-training.md`
 - Annotation/export: `references/annotation-export.md`
 - Artifacts: `references/artifact-policy.md`
-- Model registry: `docs/model-registry.md`
-- Evaluation: `docs/evaluation-protocol.md`
-
-## Required Reading
-
-- Runtime work: runtime architecture, held association, and realtime inference.
-- Model work: training, artifact policy, model registry, and evaluation.
-- Dataset work: annotation/export and `docs/dataset-policy.md`.
-- Overlay work: held association and `docs/alert-overlay-spec.md`.
 
 ## Done Criteria
 
-The requested behavior exists in the current tree, pure logic has tests, CLI
-and artifact checks pass, docs match the implementation, and every claimed
-metric is backed by inspected output.
+The requested behavior exists in the current tree, tests cover the changed
+contracts, fresh-clone checks pass without local artifacts, applicable local
+artifact checks pass separately, and docs match inspected implementation.

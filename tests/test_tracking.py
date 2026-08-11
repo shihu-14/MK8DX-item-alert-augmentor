@@ -50,3 +50,45 @@ def test_confirmed_alert_expires_after_ttl() -> None:
 
     assert tracker.visible(3.5)
     assert tracker.visible(3.6) == ()
+
+
+def test_ttl_alert_uses_current_opponent_geometry_without_new_item() -> None:
+    tracker = AlertTracker()
+    config = AlertConfig(confirmation_required=1, proximity_ema_alpha=0.5)
+    association = _association(7)
+    tracker.update_associations((association,), 1.0, config)
+    current_opponent = Detection(
+        "Opponent",
+        0.9,
+        50,
+        50,
+        350,
+        500,
+        track_id=7,
+    )
+
+    tracker.update_associations(
+        (),
+        2.0,
+        config,
+        opponents=(current_opponent,),
+    )
+    alert = tracker.visible(2.0)[0]
+
+    assert alert.opponent_bbox == (50, 50, 350, 500)
+    assert alert.bbox_height == 375.0
+    assert alert.bbox_bottom == 500
+    assert alert.item_bbox == (250, 250, 280, 280)
+    assert alert.item_observed is False
+
+
+def test_ttl_alert_keeps_last_geometry_when_no_opponent_is_observed() -> None:
+    tracker = AlertTracker()
+    config = AlertConfig(confirmation_required=1)
+    tracker.update_associations((_association(7),), 1.0, config)
+
+    tracker.update_associations((), 2.0, config, opponents=())
+    alert = tracker.visible(2.0)[0]
+
+    assert alert.opponent_bbox == (100, 100, 300, 400)
+    assert alert.item_observed is False

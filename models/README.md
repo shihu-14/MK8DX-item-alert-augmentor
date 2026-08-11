@@ -15,6 +15,7 @@ mk8dx-alert models verify
 redistribution rights are being reviewed.
 
 Installation writes to a sibling `.part` file, validates manifest size and
-SHA-256 there, and only then atomically replaces the final filename. Failed
-downloads and validation failures remove the temporary file and never leave a
-new partial checkpoint at the final path.
+SHA-256 there, and only then atomically replaces the final filename. An invalid
+existing destination is preserved until a valid replacement is ready. Missing
+release URLs, failed downloads, and validation failures leave existing bytes
+unchanged and always remove the temporary file.

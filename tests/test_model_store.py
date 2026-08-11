@@ -123,3 +123,66 @@ def test_network_error_removes_stale_part_file(tmp_path: Path) -> None:
         urlopen=lambda url, timeout: io.BytesIO(content),
     )
     assert (tmp_path / "model.pt").read_bytes() == content
+
+
+def test_corrupt_existing_unpublished_model_is_preserved(tmp_path: Path) -> None:
+    old_content = b"corrupt-existing"
+    artifact = _artifact(b"valid-model")
+    manifest = ModelManifest(1, "test", "pending", (artifact,))
+    destination = tmp_path / artifact.filename
+    destination.write_bytes(old_content)
+    (tmp_path / "model.pt.part").write_bytes(b"stale")
+
+    with pytest.raises(ModelNotPublishedError, match="pending publication"):
+        install_models(manifest, tmp_path)
+
+    assert destination.read_bytes() == old_content
+    assert not (tmp_path / "model.pt.part").exists()
+
+
+def test_corrupt_existing_model_is_atomically_replaced_after_validation(
+    tmp_path: Path,
+) -> None:
+    valid_content = b"valid-model"
+    artifact = _artifact(valid_content, "https://example.test/model.pt")
+    manifest = ModelManifest(1, "test", "published", (artifact,))
+    destination = tmp_path / artifact.filename
+    destination.write_bytes(b"corrupt-existing")
+
+    install_models(
+        manifest,
+        tmp_path,
+        urlopen=lambda url, timeout: io.BytesIO(valid_content),
+    )
+
+    assert destination.read_bytes() == valid_content
+    assert not (tmp_path / "model.pt.part").exists()
+
+
+@pytest.mark.parametrize(
+    "failure",
+    ["network", "size", "checksum"],
+)
+def test_corrupt_existing_model_survives_failed_replacement(
+    tmp_path: Path,
+    failure: str,
+) -> None:
+    old_content = b"corrupt-existing"
+    valid_content = b"valid-model"
+    artifact = _artifact(valid_content, "https://example.test/model.pt")
+    manifest = ModelManifest(1, "test", "published", (artifact,))
+    destination = tmp_path / artifact.filename
+    destination.write_bytes(old_content)
+
+    def open_failed_download(url, timeout):
+        if failure == "network":
+            raise OSError("network unavailable")
+        if failure == "size":
+            return io.BytesIO(b"bad")
+        return io.BytesIO(b"invalid-mod")
+
+    with pytest.raises(ModelStoreError):
+        install_models(manifest, tmp_path, urlopen=open_failed_download)
+
+    assert destination.read_bytes() == old_content
+    assert not (tmp_path / "model.pt.part").exists()

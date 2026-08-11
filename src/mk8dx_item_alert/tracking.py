@@ -20,6 +20,8 @@ class _TrackState:
     bbox_bottom: float
     confidence: float
     opponent_bbox: tuple[float, float, float, float] | None
+    item_bbox: tuple[float, float, float, float] | None
+    item_observed: bool
     confirmed: bool = False
     expires_at: float = 0.0
 
@@ -33,6 +35,8 @@ class TrackAlert:
     bbox_bottom: float
     confidence: float
     opponent_bbox: tuple[float, float, float, float] | None
+    item_bbox: tuple[float, float, float, float] | None
+    item_observed: bool
 
 
 @dataclass
@@ -44,11 +48,23 @@ class AlertTracker:
         associations: tuple[AssociatedItem, ...],
         now: float,
         config: AlertConfig,
+        *,
+        opponents: tuple[Detection, ...] = (),
     ) -> None:
-        observed = {association.opponent_track_id for association in associations}
+        associated = {association.opponent_track_id for association in associations}
         for track_id, state in self.states.items():
-            if track_id not in observed and isinstance(track_id, int):
+            if isinstance(track_id, int):
+                state.item_observed = False
+            if track_id not in associated and isinstance(track_id, int):
                 state.history.append(False)
+
+        for opponent in opponents:
+            track_id = opponent.track_id
+            if track_id is None or track_id in associated:
+                continue
+            state = self.states.get(track_id)
+            if state is not None:
+                self._update_opponent_geometry(state, opponent, config)
 
         for association in associations:
             self._update(
@@ -64,6 +80,13 @@ class AlertTracker:
                     association.opponent.x2,
                     association.opponent.y2,
                 ),
+                item_bbox=(
+                    association.item.x1,
+                    association.item.y1,
+                    association.item.x2,
+                    association.item.y2,
+                ),
+                item_observed=True,
                 now=now,
                 config=config,
                 required=config.confirmation_required,
@@ -90,6 +113,13 @@ class AlertTracker:
                 bbox_bottom=detection.bottom,
                 confidence=detection.confidence,
                 opponent_bbox=None,
+                item_bbox=(
+                    detection.x1,
+                    detection.y1,
+                    detection.x2,
+                    detection.y2,
+                ),
+                item_observed=True,
                 now=now,
                 config=config,
                 required=1,
@@ -107,6 +137,8 @@ class AlertTracker:
                 bbox_bottom=state.bbox_bottom,
                 confidence=state.confidence,
                 opponent_bbox=state.opponent_bbox,
+                item_bbox=state.item_bbox,
+                item_observed=state.item_observed,
             )
             for state in self.states.values()
             if state.confirmed and now <= state.expires_at
@@ -122,6 +154,8 @@ class AlertTracker:
         bbox_bottom: float,
         confidence: float,
         opponent_bbox: tuple[float, float, float, float] | None,
+        item_bbox: tuple[float, float, float, float] | None,
+        item_observed: bool,
         now: float,
         config: AlertConfig,
         required: int,
@@ -137,6 +171,8 @@ class AlertTracker:
                 bbox_bottom=bbox_bottom,
                 confidence=confidence,
                 opponent_bbox=opponent_bbox,
+                item_bbox=item_bbox,
+                item_observed=item_observed,
             )
             self.states[track_id] = state
         else:
@@ -148,11 +184,32 @@ class AlertTracker:
             state.bbox_bottom = bbox_bottom
             state.confidence = confidence
             state.opponent_bbox = opponent_bbox
+            state.item_bbox = item_bbox
+            state.item_observed = item_observed
 
         state.history.append(True)
         if sum(state.history) >= required:
             state.confirmed = True
             state.expires_at = now + config.duration_sec
+
+    @staticmethod
+    def _update_opponent_geometry(
+        state: _TrackState,
+        opponent: Detection,
+        config: AlertConfig,
+    ) -> None:
+        alpha = config.proximity_ema_alpha
+        state.bbox_height_ema = (
+            alpha * opponent.height + (1.0 - alpha) * state.bbox_height_ema
+        )
+        state.center_x = opponent.center_x
+        state.bbox_bottom = opponent.bottom
+        state.opponent_bbox = (
+            opponent.x1,
+            opponent.y1,
+            opponent.x2,
+            opponent.y2,
+        )
 
     def _remove_expired(self, now: float) -> None:
         expired = [

@@ -15,6 +15,9 @@ Keep use to local research, offline testing, and documentation.
 - `scripts/train_yolo.py` is the runnable training command.
 - `scripts/validate_dataset.py` validates exported dataset structure.
 - Concrete checkpoint facts belong in `docs/model-registry.md`.
+- Runtime module contracts belong in `docs/architecture.md`.
+- Held-item temporal and geometry behavior belongs in
+  `docs/held-item-association.md`.
 - Detailed workflows live in
   `.agents/skills/mk8dx-item-alert-system/`.
 
@@ -31,7 +34,8 @@ root-level training scripts. Git history is the archive.
 - Legacy six-class detections are not proof of held state.
 - Integrated alerts require an opponent track and temporal confirmation.
 - Runtime tracker IDs must never be treated as ground-truth identities;
-  evaluation matches frame/label/opponent bbox and scopes lead time by event.
+  evaluation matches held alerts by opponent bbox, negative causes by item bbox,
+  and scopes lead time by event.
 - Legacy mode must run without the optional `tracking` extra. Integrated mode
   must fail clearly when it is unavailable.
 - Keep pure behavior testable without a camera or YOLO checkpoint.
@@ -48,13 +52,19 @@ root-level training scripts. Git history is the archive.
 
 ## Verification
 
-Run from an installed development environment:
+Fresh-clone checks do not require datasets or model binaries:
 
 ```bash
+python -m pip install -e ".[dev]"
 pytest -q
 RUFF_CACHE_DIR=/tmp/mk8dx-ruff ruff check .
 python -m compileall src scripts tests
 mk8dx-alert --help
+```
+
+When authorized promoted models are present under ignored `models/`, also run:
+
+```bash
 mk8dx-alert models verify
 ```
 

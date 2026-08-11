@@ -134,7 +134,12 @@ def _evaluate_command(args: argparse.Namespace) -> int:
     print(
         f"precision={report.precision:.4f} recall={report.recall:.4f} "
         f"tp={report.true_positive} fp={report.false_positive} "
-        f"fn={report.false_negative} gate_errors={report.gate_errors}"
+        f"fn={report.false_negative} "
+        f"unclassified_fp={report.unclassified_false_positive} "
+        f"gate_errors={report.gate_errors} "
+        f"gate_fp={report.gate_false_positive} "
+        f"gate_fn={report.gate_false_negative} "
+        f"gate_missing={report.missing_gate_prediction}"
     )
     if report.average_lead_frames is not None:
         print(f"average_lead_frames={report.average_lead_frames:.2f}")

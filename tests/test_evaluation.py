@@ -26,11 +26,14 @@ def _truth_object(
     item_use_frame: int | None = None,
 ) -> dict[str, object]:
     value: dict[str, object] = {
-        "opponent_id": f"gt-{bbox[0]}",
         "label": label,
         "state": state,
-        "opponent_bbox": bbox,
     }
+    if state == "held":
+        value["opponent_id"] = f"gt-{bbox[0]}"
+        value["opponent_bbox"] = bbox
+    else:
+        value["item_bbox"] = bbox
     if event_id is not None:
         value["event_id"] = event_id
     if item_use_frame is not None:
@@ -39,16 +42,20 @@ def _truth_object(
 
 
 def _prediction(
-    bbox: list[int],
+    opponent_bbox: list[int],
     *,
     track_id: int,
     label: str = "FB",
+    item_bbox: list[int] | None = None,
+    item_observed: bool = True,
 ) -> dict[str, object]:
     return {
         "runtime_track_id": track_id,
         "label": label,
         "confidence": 0.9,
-        "opponent_bbox": bbox,
+        "opponent_bbox": opponent_bbox,
+        "item_bbox": item_bbox or opponent_bbox,
+        "item_observed": item_observed,
     }
 
 
@@ -106,22 +113,31 @@ def test_same_label_for_two_opponents_is_matched_one_to_one(tmp_path: Path) -> N
     assert report.recall == 1.0
 
 
-def test_missing_gate_prediction_counts_as_gate_error(tmp_path: Path) -> None:
+def test_gate_metrics_separate_fp_fn_and_missing(tmp_path: Path) -> None:
     truth = tmp_path / "truth.jsonl"
     predictions = tmp_path / "predictions.jsonl"
     _write_jsonl(
         truth,
         [
-            {"frame": 1, "gate_active": True, "objects": []},
-            {"frame": 2, "gate_active": False, "objects": []},
+            {"frame": 1, "gate_active": False, "objects": []},
+            {"frame": 2, "gate_active": True, "objects": []},
+            {"frame": 3, "gate_active": True, "objects": []},
         ],
     )
     _write_jsonl(
         predictions,
-        [{"frame": 1, "gate_active": True, "alerts": []}],
+        [
+            {"frame": 1, "gate_active": True, "alerts": []},
+            {"frame": 2, "gate_active": False, "alerts": []},
+        ],
     )
 
-    assert evaluate_jsonl(truth, predictions).gate_errors == 1
+    report = evaluate_jsonl(truth, predictions)
+
+    assert report.gate_false_positive == 1
+    assert report.gate_false_negative == 1
+    assert report.missing_gate_prediction == 1
+    assert report.gate_errors == 3
 
 
 def test_lead_time_is_scoped_to_each_matched_held_event(tmp_path: Path) -> None:
@@ -179,6 +195,8 @@ def test_runtime_prediction_record_uses_bbox_and_keeps_tracker_id_local() -> Non
         label="FB",
         confidence=0.75,
         opponent_bbox=(1.0, 2.0, 30.0, 40.0),
+        item_bbox=(20.0, 25.0, 30.0, 35.0),
+        item_observed=False,
     )
     result = SimpleNamespace(gate_active=True, mode="integrated", alerts=(alert,))
 
@@ -187,6 +205,96 @@ def test_runtime_prediction_record_uses_bbox_and_keeps_tracker_id_local() -> Non
     assert record["frame"] == 3
     assert record["alerts"][0]["runtime_track_id"] == 81
     assert record["alerts"][0]["opponent_bbox"] == [1.0, 2.0, 30.0, 40.0]
+    assert record["alerts"][0]["item_bbox"] == [20.0, 25.0, 30.0, 35.0]
+    assert record["alerts"][0]["item_observed"] is False
+
+
+@pytest.mark.parametrize("state", ["thrown", "dropped", "background", "hud"])
+def test_negative_without_opponent_is_classified_by_item_bbox(
+    tmp_path: Path,
+    state: str,
+) -> None:
+    truth = tmp_path / "truth.jsonl"
+    predictions = tmp_path / "predictions.jsonl"
+    item_bbox = [300, 200, 340, 240]
+    _write_jsonl(
+        truth,
+        [{"frame": 1, "objects": [_truth_object(item_bbox, state=state)]}],
+    )
+    _write_jsonl(
+        predictions,
+        [
+            {
+                "frame": 1,
+                "alerts": [
+                    _prediction(
+                        [0, 0, 100, 100],
+                        track_id=7,
+                        item_bbox=item_bbox,
+                    )
+                ],
+            }
+        ],
+    )
+
+    report = evaluate_jsonl(truth, predictions)
+
+    assert report.false_positive == 1
+    assert report.false_alerts_by_state == {state: 1}
+    assert report.unclassified_false_positive == 0
+
+
+def test_unmatched_prediction_is_reported_as_unclassified_false_positive(
+    tmp_path: Path,
+) -> None:
+    truth = tmp_path / "truth.jsonl"
+    predictions = tmp_path / "predictions.jsonl"
+    _write_jsonl(truth, [{"frame": 1, "objects": []}])
+    _write_jsonl(
+        predictions,
+        [{"frame": 1, "alerts": [_prediction([0, 0, 100, 100], track_id=1)]}],
+    )
+
+    report = evaluate_jsonl(truth, predictions)
+
+    assert report.false_positive == 1
+    assert report.unclassified_false_positive == 1
+    assert report.false_alerts_by_state == {}
+
+
+def test_persistent_ttl_alert_is_counted_on_each_output_frame(
+    tmp_path: Path,
+) -> None:
+    truth = tmp_path / "truth.jsonl"
+    predictions = tmp_path / "predictions.jsonl"
+    _write_jsonl(
+        truth,
+        [
+            {"frame": 1, "objects": [_truth_object([0, 0, 100, 100])]},
+            {"frame": 2, "objects": [_truth_object([20, 0, 140, 120])]},
+        ],
+    )
+    _write_jsonl(
+        predictions,
+        [
+            {"frame": 1, "alerts": [_prediction([0, 0, 100, 100], track_id=5)]},
+            {
+                "frame": 2,
+                "alerts": [
+                    _prediction(
+                        [20, 0, 140, 120],
+                        track_id=5,
+                        item_observed=False,
+                    )
+                ],
+            },
+        ],
+    )
+
+    report = evaluate_jsonl(truth, predictions)
+
+    assert report.true_positive == 2
+    assert report.false_positive == 0
 
 
 def test_event_identity_rejects_inconsistent_labels(tmp_path: Path) -> None:

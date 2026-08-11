@@ -96,6 +96,7 @@ class FrameProcessor:
                     associations,
                     now,
                     self.config.alerts,
+                    opponents=opponents,
                 )
             else:
                 self.tracker.update_legacy(

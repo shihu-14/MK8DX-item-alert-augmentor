@@ -90,7 +90,8 @@ RUFF_CACHE_DIR=/tmp/mk8dx-ruff ruff check .
 python -m compileall src scripts tests
 ```
 
-See `docs/system-spec.md`, `docs/model-registry.md`,
+See `docs/system-spec.md`, `docs/architecture.md`,
+`docs/held-item-association.md`, `docs/model-registry.md`,
 `docs/evaluation-protocol.md`, and the repository Skill under
 `.agents/skills/mk8dx-item-alert-system/`.
 

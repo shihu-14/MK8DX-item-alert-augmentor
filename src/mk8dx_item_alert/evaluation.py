@@ -18,7 +18,8 @@ BoundingBox = tuple[float, float, float, float]
 class _TruthObject:
     label: str
     state: str
-    opponent_bbox: BoundingBox
+    opponent_bbox: BoundingBox | None
+    item_bbox: BoundingBox | None
     event_id: str | None
     item_use_frame: int | None
 
@@ -27,7 +28,9 @@ class _TruthObject:
 class _PredictedAlert:
     label: str
     opponent_bbox: BoundingBox
+    item_bbox: BoundingBox
     confidence: float
+    item_observed: bool
 
 
 @dataclass(frozen=True)
@@ -38,9 +41,20 @@ class EvaluationReport:
     precision: float
     recall: float
     false_alerts_by_state: dict[str, int]
-    gate_errors: int
+    unclassified_false_positive: int
+    gate_false_positive: int
+    gate_false_negative: int
+    missing_gate_prediction: int
     average_lead_frames: float | None
     lead_frames_by_event: dict[str, int]
+
+    @property
+    def gate_errors(self) -> int:
+        return (
+            self.gate_false_positive
+            + self.gate_false_negative
+            + self.missing_gate_prediction
+        )
 
 
 def evaluate_jsonl(
@@ -57,6 +71,7 @@ def evaluate_jsonl(
     true_positive = 0
     false_positive = 0
     false_negative = 0
+    unclassified_false_positive = 0
     false_states: Counter[str] = Counter()
     event_definitions: dict[str, tuple[str, int | None]] = {}
     matched_event_frames: dict[str, list[int]] = {}
@@ -72,32 +87,69 @@ def evaluate_jsonl(
             _parse_predicted_alert(value, predictions_path, frame)
             for value in prediction_record.get("alerts", [])
         )
-        matches = _match_frame(truth_objects, predicted_alerts, iou_threshold)
-        matched_truth = {truth_index for _, truth_index in matches}
-        matched_predictions = {prediction_index for prediction_index, _ in matches}
+        held_truth = tuple(
+            index
+            for index, truth_object in enumerate(truth_objects)
+            if truth_object.state == "held"
+        )
+        prediction_indexes = tuple(range(len(predicted_alerts)))
+        held_matches = _match_frame(
+            truth_objects,
+            predicted_alerts,
+            held_truth,
+            prediction_indexes,
+            iou_threshold,
+            bbox_kind="opponent",
+        )
+        held_predictions = {prediction_index for prediction_index, _ in held_matches}
+        negative_truth = tuple(
+            index
+            for index, truth_object in enumerate(truth_objects)
+            if truth_object.state != "held"
+        )
+        remaining_predictions = tuple(
+            index
+            for index in prediction_indexes
+            if index not in held_predictions
+        )
+        negative_matches = _match_frame(
+            truth_objects,
+            predicted_alerts,
+            negative_truth,
+            remaining_predictions,
+            iou_threshold,
+            bbox_kind="item",
+        )
+        matched_held_truth = {truth_index for _, truth_index in held_matches}
+        matched_negative_predictions = {
+            prediction_index for prediction_index, _ in negative_matches
+        }
 
         for truth_object in truth_objects:
             _register_event(event_definitions, truth_object)
 
-        for _, truth_index in matches:
+        for _, truth_index in held_matches:
             truth_object = truth_objects[truth_index]
-            if truth_object.state == "held":
-                true_positive += 1
-                if truth_object.event_id is not None:
-                    matched_event_frames.setdefault(truth_object.event_id, []).append(
-                        frame
-                    )
-            else:
-                false_positive += 1
-                false_states[truth_object.state] += 1
+            true_positive += 1
+            if truth_object.event_id is not None:
+                matched_event_frames.setdefault(truth_object.event_id, []).append(frame)
 
-        false_positive += len(predicted_alerts) - len(matched_predictions)
+        for _, truth_index in negative_matches:
+            false_states[truth_objects[truth_index].state] += 1
+
+        classified_false_positive = len(negative_matches)
+        unclassified = (
+            len(remaining_predictions) - len(matched_negative_predictions)
+        )
+        false_positive += classified_false_positive + unclassified
+        unclassified_false_positive += unclassified
         false_negative += sum(
-            truth_object.state == "held" and index not in matched_truth
-            for index, truth_object in enumerate(truth_objects)
+            truth_index not in matched_held_truth for truth_index in held_truth
         )
 
-    gate_errors = _count_gate_errors(truth_frames, prediction_frames)
+    gate_false_positive, gate_false_negative, missing_gate_prediction = (
+        _count_gate_errors(truth_frames, prediction_frames)
+    )
     lead_frames_by_event = {
         event_id: use_frame - min(matched_event_frames[event_id])
         for event_id, (_, use_frame) in sorted(event_definitions.items())
@@ -111,7 +163,10 @@ def evaluate_jsonl(
         precision=_safe_ratio(true_positive, true_positive + false_positive),
         recall=_safe_ratio(true_positive, true_positive + false_negative),
         false_alerts_by_state=dict(sorted(false_states.items())),
-        gate_errors=gate_errors,
+        unclassified_false_positive=unclassified_false_positive,
+        gate_false_positive=gate_false_positive,
+        gate_false_negative=gate_false_negative,
+        missing_gate_prediction=missing_gate_prediction,
         average_lead_frames=(
             sum(lead_values) / len(lead_values) if lead_values else None
         ),
@@ -123,7 +178,7 @@ def prediction_frame_record(frame: int, result) -> dict[str, object]:
     """Build one runtime prediction record without exposing tracker IDs as GT IDs."""
     alerts = []
     for alert in result.alerts:
-        if alert.opponent_bbox is None:
+        if alert.opponent_bbox is None or alert.item_bbox is None:
             continue
         alerts.append(
             {
@@ -131,6 +186,8 @@ def prediction_frame_record(frame: int, result) -> dict[str, object]:
                 "label": alert.label,
                 "confidence": alert.confidence,
                 "opponent_bbox": list(alert.opponent_bbox),
+                "item_bbox": list(alert.item_bbox),
+                "item_observed": alert.item_observed,
             }
         )
     return {
@@ -185,12 +242,27 @@ def _parse_truth_object(raw: object, path: Path, frame: int) -> _TruthObject:
         )
     if event_id is not None and state != "held":
         raise ValueError(f"{path}:frame {frame}: event_id requires held state")
+    opponent_bbox = _parse_optional_bbox(
+        value.get("opponent_bbox"),
+        path,
+        frame,
+        "opponent_bbox",
+    )
+    item_bbox = _parse_optional_bbox(
+        value.get("item_bbox"),
+        path,
+        frame,
+        "item_bbox",
+    )
+    if state == "held" and opponent_bbox is None:
+        raise ValueError(f"{path}:frame {frame}: held state requires opponent_bbox")
+    if state != "held" and item_bbox is None:
+        raise ValueError(f"{path}:frame {frame}: {state} state requires item_bbox")
     return _TruthObject(
         label=str(_require_key(value, "label", path, frame)),
         state=state,
-        opponent_bbox=_parse_bbox(
-            _require_key(value, "opponent_bbox", path, frame), path, frame
-        ),
+        opponent_bbox=opponent_bbox,
+        item_bbox=item_bbox,
         event_id=event_id,
         item_use_frame=item_use_frame,
     )
@@ -200,39 +272,65 @@ def _parse_predicted_alert(
     raw: object, path: Path, frame: int
 ) -> _PredictedAlert:
     value = _require_object(raw, path, frame, "predicted alert")
+    item_observed = _require_key(value, "item_observed", path, frame)
+    if not isinstance(item_observed, bool):
+        raise TypeError(f"{path}:frame {frame}: item_observed must be a boolean")
     return _PredictedAlert(
         label=str(_require_key(value, "label", path, frame)),
         opponent_bbox=_parse_bbox(
-            _require_key(value, "opponent_bbox", path, frame), path, frame
+            _require_key(value, "opponent_bbox", path, frame),
+            path,
+            frame,
+            "opponent_bbox",
+        ),
+        item_bbox=_parse_bbox(
+            _require_key(value, "item_bbox", path, frame),
+            path,
+            frame,
+            "item_bbox",
         ),
         confidence=float(value.get("confidence", 0.0)),
+        item_observed=item_observed,
     )
 
 
 def _match_frame(
     truth: tuple[_TruthObject, ...],
     predictions: tuple[_PredictedAlert, ...],
+    truth_indexes: tuple[int, ...],
+    prediction_indexes: tuple[int, ...],
     iou_threshold: float,
+    *,
+    bbox_kind: str,
 ) -> tuple[tuple[int, int], ...]:
     candidates = {
         prediction_index: sorted(
             (
-                (truth_index, _bbox_iou(prediction.opponent_bbox, target.opponent_bbox))
-                for truth_index, target in enumerate(truth)
-                if prediction.label == target.label
-                and _bbox_iou(prediction.opponent_bbox, target.opponent_bbox)
+                (
+                    truth_index,
+                    _bbox_iou(
+                        _prediction_bbox(predictions[prediction_index], bbox_kind),
+                        _truth_bbox(truth[truth_index], bbox_kind),
+                    ),
+                )
+                for truth_index in truth_indexes
+                if predictions[prediction_index].label == truth[truth_index].label
+                and _bbox_iou(
+                    _prediction_bbox(predictions[prediction_index], bbox_kind),
+                    _truth_bbox(truth[truth_index], bbox_kind),
+                )
                 >= iou_threshold
             ),
             key=lambda candidate: (-candidate[1], candidate[0]),
         )
-        for prediction_index, prediction in enumerate(predictions)
+        for prediction_index in prediction_indexes
     }
     order = sorted(
-        range(len(predictions)),
+        prediction_indexes,
         key=lambda index: (
             len(candidates[index]),
             -predictions[index].confidence,
-            predictions[index].opponent_bbox,
+            _prediction_bbox(predictions[index], bbox_kind),
             predictions[index].label,
             index,
         ),
@@ -255,6 +353,21 @@ def _match_frame(
     return tuple(sorted((prediction, truth) for truth, prediction in truth_owner.items()))
 
 
+def _truth_bbox(truth: _TruthObject, bbox_kind: str) -> BoundingBox:
+    bbox = truth.opponent_bbox if bbox_kind == "opponent" else truth.item_bbox
+    if bbox is None:
+        raise ValueError(f"truth record is missing {bbox_kind}_bbox")
+    return bbox
+
+
+def _prediction_bbox(prediction: _PredictedAlert, bbox_kind: str) -> BoundingBox:
+    return (
+        prediction.opponent_bbox
+        if bbox_kind == "opponent"
+        else prediction.item_bbox
+    )
+
+
 def _bbox_iou(left: BoundingBox, right: BoundingBox) -> float:
     intersection_width = max(0.0, min(left[2], right[2]) - max(left[0], right[0]))
     intersection_height = max(0.0, min(left[3], right[3]) - max(left[1], right[1]))
@@ -265,13 +378,29 @@ def _bbox_iou(left: BoundingBox, right: BoundingBox) -> float:
     return intersection / union if union else 0.0
 
 
-def _parse_bbox(raw: object, path: Path, frame: int) -> BoundingBox:
+def _parse_bbox(
+    raw: object,
+    path: Path,
+    frame: int,
+    name: str,
+) -> BoundingBox:
     if not isinstance(raw, list) or len(raw) != 4:
-        raise ValueError(f"{path}:frame {frame}: opponent_bbox must have 4 values")
+        raise ValueError(f"{path}:frame {frame}: {name} must have 4 values")
     x1, y1, x2, y2 = (float(value) for value in raw)
     if x2 <= x1 or y2 <= y1:
-        raise ValueError(f"{path}:frame {frame}: opponent_bbox has invalid bounds")
+        raise ValueError(f"{path}:frame {frame}: {name} has invalid bounds")
     return x1, y1, x2, y2
+
+
+def _parse_optional_bbox(
+    raw: object,
+    path: Path,
+    frame: int,
+    name: str,
+) -> BoundingBox | None:
+    if raw is None:
+        return None
+    return _parse_bbox(raw, path, frame, name)
 
 
 def _register_event(
@@ -301,27 +430,24 @@ def _register_event(
 def _count_gate_errors(
     truth_frames: dict[int, dict[str, object]],
     prediction_frames: dict[int, dict[str, object]],
-) -> int:
-    errors = 0
+) -> tuple[int, int, int]:
+    false_positive = 0
+    false_negative = 0
+    missing = 0
     for frame, truth_record in truth_frames.items():
         if "gate_active" not in truth_record:
             continue
-        errors += not _gate_prediction_matches(
-            truth_record,
-            prediction_frames.get(frame),
-        )
-    return errors
-
-
-def _gate_prediction_matches(
-    truth_record: dict[str, object],
-    prediction_record: dict[str, object] | None,
-) -> bool:
-    if prediction_record is None or "gate_active" not in prediction_record:
-        return False
-    return bool(prediction_record["gate_active"]) == bool(truth_record["gate_active"])
-
-
+        prediction_record = prediction_frames.get(frame)
+        truth_active = bool(truth_record["gate_active"])
+        if prediction_record is None or "gate_active" not in prediction_record:
+            missing += 1
+            continue
+        prediction_active = bool(prediction_record["gate_active"])
+        if prediction_active and not truth_active:
+            false_positive += 1
+        elif truth_active and not prediction_active:
+            false_negative += 1
+    return false_positive, false_negative, missing
 def _require_object(
     raw: object, path: Path, frame: int, description: str
 ) -> dict[str, object]:

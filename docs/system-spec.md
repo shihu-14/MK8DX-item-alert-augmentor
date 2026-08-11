@@ -24,6 +24,8 @@ held detection.
 
 Integrated mode accepts the six item labels followed by `Opponent`, uses
 ByteTrack IDs, confirms association over time, and ranks alerts.
+Detailed association, TTL, and geometry-refresh behavior is defined in
+`docs/held-item-association.md`.
 
 ## Estimated Distance
 

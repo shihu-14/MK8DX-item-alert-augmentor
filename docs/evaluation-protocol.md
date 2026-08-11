@@ -19,20 +19,36 @@ Each JSONL line is one unique zero-based frame. Ground truth uses an `objects`
 array and may include `gate_active`:
 
 ```json
-{"frame":42,"gate_active":true,"objects":[{"opponent_id":"kart-a","event_id":"kart-a-fb-1","label":"FB","state":"held","opponent_bbox":[100,80,260,390],"item_use_frame":73}]}
+{"frame":42,"gate_active":true,"objects":[{"opponent_id":"kart-a","event_id":"kart-a-fb-1","label":"FB","state":"held","opponent_bbox":[100,80,260,390],"item_bbox":[220,210,252,242],"item_use_frame":73}]}
 ```
 
 `state` is `held`, `thrown`, `dropped`, `background`, or `hud`.
-`opponent_bbox` identifies the opponent involved in the annotation. An
-`opponent_id` is recommended for annotation traceability but is never compared
-with a runtime tracker ID. `event_id` must uniquely identify one held/item-use
-event; it is required whenever `item_use_frame` is present.
+
+- A `held` object requires `opponent_bbox`; `item_bbox` is optional supporting
+  annotation.
+- A non-held object requires `item_bbox`. `opponent_bbox` is optional, so
+  dropped, background/course, and HUD causes can be annotated without inventing
+  an opponent.
+- `opponent_id` is recommended for annotation traceability but is never
+  compared with a runtime tracker ID.
+- `event_id` uniquely identifies one held/item-use event and is required when
+  `item_use_frame` is present.
+
+For example, a HUD negative needs only its item-like region:
+
+```json
+{"frame":42,"objects":[{"label":"FB","state":"hud","item_bbox":[1680,40,1760,120]}]}
+```
 
 Runtime predictions use an `alerts` array:
 
 ```json
-{"frame":42,"gate_active":true,"mode":"integrated","alerts":[{"runtime_track_id":17,"label":"FB","confidence":0.84,"opponent_bbox":[103,82,258,388]}]}
+{"frame":42,"gate_active":true,"mode":"integrated","alerts":[{"runtime_track_id":17,"label":"FB","confidence":0.84,"opponent_bbox":[103,82,258,388],"item_bbox":[222,212,251,241],"item_observed":true}]}
 ```
+
+`opponent_bbox` is the latest geometry for that opponent track. `item_bbox` is
+the most recent associated item detection supporting the alert.
+`item_observed` says whether that item association exists on the current frame.
 
 Generate this file directly from the runtime:
 
@@ -47,21 +63,32 @@ records its gate result and `mode`.
 
 ## Matching And Metrics
 
-For each frame, predictions and truth objects must have the same item label and
-an opponent-bbox IoU at or above the configured threshold (default `0.5`). A
-deterministic maximum-cardinality bipartite match enforces one prediction per
-truth object and one truth object per prediction. Runtime tracker IDs are
-diagnostic only. This supports multiple opponents holding the same item class.
+Matching is deterministic and one-to-one within each frame:
 
-A prediction matched to `held` is a true positive. A prediction matched to a
-non-held state is a false positive in that state. An unmatched prediction is
-an unclassified false positive, and an unmatched held object is a false
-negative. Counts are frame-level, so a persistent alert contributes once per
-annotated frame.
+1. Match same-label predictions to `held` truth by opponent-bbox IoU.
+2. Match only the remaining predictions to non-held truth by item-bbox IoU.
+3. Use the configured IoU threshold for both stages (default `0.5`).
+
+Held matching has priority so a valid opponent-held alert is not consumed by a
+nearby negative item annotation. Maximum-cardinality bipartite matching in each
+stage supports multiple opponents holding the same item class. Runtime tracker
+IDs remain diagnostic only.
+
+A held match is a true positive. A non-held item match is a classified false
+positive in that state. A prediction left after both stages is reported as
+`unclassified_false_positive`. An unmatched held object is a false negative.
+
+Metrics are frame-level. A confirmed alert that persists under TTL contributes
+once for every frame where runtime outputs it. During an opponent-only frame,
+the current opponent bbox is used for held matching, while the last supporting
+item bbox remains available for negative-cause matching and
+`item_observed=false`. If neither bbox matches truth on that frame, the alert is
+an unclassified false positive.
 
 Every truth frame containing `gate_active` requires a prediction frame with
-`gate_active`. A missing value, missing frame, or unequal value is one gate
-error.
+`gate_active`. Metrics report gate false positives (`truth=false`,
+`prediction=true`), gate false negatives (`truth=true`, `prediction=false`),
+and missing gate predictions separately. `gate_errors` is their sum.
 
 Lead time is calculated separately for each `event_id` as
 `item_use_frame - earliest matched prediction frame`. Only predictions matched

@@ -4,7 +4,8 @@
 
 - Load and validate models before capture starts.
 - Build static masks once per frame size.
-- Use the gate only when configured and measure gate errors separately.
+- Use the gate only when configured and report false-positive, false-negative,
+  and missing-prediction gate metrics separately.
 - Use ByteTrack only with the integrated seven-class detector.
 - Keep display and video writing outside frame processing.
 - Never download a model or print per-frame diagnostics implicitly.
