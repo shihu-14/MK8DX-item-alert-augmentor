@@ -14,6 +14,8 @@
 - `TrackAlert` is confirmed temporal state for one opponent.
 - `RankedAlert` is display-ready estimated-distance ordering.
 - `FrameResult` carries detections, associations, alerts, mode, and timings.
+- Evaluation prediction JSONL carries frame gate state and integrated confirmed
+  alert labels/opponent boxes; runtime tracker IDs remain diagnostic only.
 
 OpenCV frames remain array-like values at module boundaries. Ultralytics result
 objects must not escape `inference.py`.

@@ -12,9 +12,10 @@ Configuration groups:
 - Association: opponent label and expanded-box ratios.
 - Alerts: icon size, TTL, maximum count, three-of-five confirmation, and
   proximity EMA.
-- Output: save flag, ignored output path, FPS, and window name.
+- Output: save flag, ignored video path, FPS, window name, and optional ignored
+  prediction JSONL path.
 - Runtime: source, gate enabled, debug, and profile flags.
 
-The CLI overrides source, model paths, gate, save, debug, and profiling without
-mutating defaults. Model distribution metadata is separate in
+The CLI overrides source, model paths, gate, save, debug, profiling, and
+prediction output without mutating defaults. Model distribution metadata is separate in
 `models/manifest.toml`.

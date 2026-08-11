@@ -29,6 +29,11 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--no-save", action="store_true")
     run_parser.add_argument("--debug", action="store_true")
     run_parser.add_argument("--profile", action="store_true")
+    run_parser.add_argument(
+        "--predictions-jsonl",
+        type=Path,
+        help="Write frame-level evaluation predictions as JSONL.",
+    )
 
     models_parser = commands.add_parser("models", help="Manage local model files.")
     model_commands = models_parser.add_subparsers(
@@ -54,6 +59,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     evaluate_parser.add_argument("--ground-truth", type=Path, required=True)
     evaluate_parser.add_argument("--predictions", type=Path, required=True)
+    evaluate_parser.add_argument("--iou-threshold", type=float, default=0.5)
     return parser
 
 
@@ -90,6 +96,14 @@ def _run_command(args: argparse.Namespace) -> int:
             config,
             output=replace(config.output, save_video=False),
         )
+    if args.predictions_jsonl is not None:
+        config = replace(
+            config,
+            output=replace(
+                config.output,
+                predictions_jsonl_path=args.predictions_jsonl,
+            ),
+        )
     run_realtime(config)
     return 0
 
@@ -112,7 +126,11 @@ def _models_command(args: argparse.Namespace) -> int:
 def _evaluate_command(args: argparse.Namespace) -> int:
     from .evaluation import evaluate_jsonl
 
-    report = evaluate_jsonl(args.ground_truth, args.predictions)
+    report = evaluate_jsonl(
+        args.ground_truth,
+        args.predictions,
+        iou_threshold=args.iou_threshold,
+    )
     print(
         f"precision={report.precision:.4f} recall={report.recall:.4f} "
         f"tp={report.true_positive} fp={report.false_positive} "
@@ -120,6 +138,8 @@ def _evaluate_command(args: argparse.Namespace) -> int:
     )
     if report.average_lead_frames is not None:
         print(f"average_lead_frames={report.average_lead_frames:.2f}")
+        for event_id, lead_frames in report.lead_frames_by_event.items():
+            print(f"lead_frames[{event_id}]={lead_frames}")
     for state, count in report.false_alerts_by_state.items():
         print(f"false_alert[{state}]={count}")
     return 0

@@ -18,9 +18,12 @@ background, course-decoration, and HUD examples are negatives.
 ## Spatial Association
 
 Use the item center and an opponent box expanded by configurable horizontal and
-vertical ratios. Ignore opponents without a tracker ID. If multiple opponents
-are candidates, select the smallest normalized center distance. Keep at most
-one highest-confidence item per opponent per frame.
+vertical ratios. Ignore opponents without a tracker ID. Resolve all candidate
+edges with deterministic maximum-cardinality bipartite matching so each item
+and opponent is used at most once. Prefer constrained/high-confidence items,
+then normalized center distance and stable geometry/track-ID tie breakers. This
+prevents overlapping expanded boxes from consuming an item that could have
+been assigned to another opponent.
 
 ## Temporal Confirmation
 

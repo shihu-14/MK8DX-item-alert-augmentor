@@ -19,6 +19,7 @@ class _TrackState:
     bbox_height_ema: float
     bbox_bottom: float
     confidence: float
+    opponent_bbox: tuple[float, float, float, float] | None
     confirmed: bool = False
     expires_at: float = 0.0
 
@@ -31,6 +32,7 @@ class TrackAlert:
     bbox_height: float
     bbox_bottom: float
     confidence: float
+    opponent_bbox: tuple[float, float, float, float] | None
 
 
 @dataclass
@@ -56,6 +58,12 @@ class AlertTracker:
                 bbox_height=association.opponent.height,
                 bbox_bottom=association.opponent.bottom,
                 confidence=association.item.confidence,
+                opponent_bbox=(
+                    association.opponent.x1,
+                    association.opponent.y1,
+                    association.opponent.x2,
+                    association.opponent.y2,
+                ),
                 now=now,
                 config=config,
                 required=config.confirmation_required,
@@ -81,6 +89,7 @@ class AlertTracker:
                 bbox_height=detection.height,
                 bbox_bottom=detection.bottom,
                 confidence=detection.confidence,
+                opponent_bbox=None,
                 now=now,
                 config=config,
                 required=1,
@@ -97,6 +106,7 @@ class AlertTracker:
                 bbox_height=state.bbox_height_ema,
                 bbox_bottom=state.bbox_bottom,
                 confidence=state.confidence,
+                opponent_bbox=state.opponent_bbox,
             )
             for state in self.states.values()
             if state.confirmed and now <= state.expires_at
@@ -111,6 +121,7 @@ class AlertTracker:
         bbox_height: float,
         bbox_bottom: float,
         confidence: float,
+        opponent_bbox: tuple[float, float, float, float] | None,
         now: float,
         config: AlertConfig,
         required: int,
@@ -125,6 +136,7 @@ class AlertTracker:
                 bbox_height_ema=bbox_height,
                 bbox_bottom=bbox_bottom,
                 confidence=confidence,
+                opponent_bbox=opponent_bbox,
             )
             self.states[track_id] = state
         else:
@@ -135,6 +147,7 @@ class AlertTracker:
             state.center_x = center_x
             state.bbox_bottom = bbox_bottom
             state.confidence = confidence
+            state.opponent_bbox = opponent_bbox
 
         state.history.append(True)
         if sum(state.history) >= required:

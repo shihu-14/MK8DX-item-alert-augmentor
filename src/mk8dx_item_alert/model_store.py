@@ -91,6 +91,10 @@ def sha256_file(path: Path, chunk_size: int = 1024 * 1024) -> str:
 
 def verify_artifact(artifact: ModelArtifact, model_dir: Path) -> Path:
     path = artifact.path_in(model_dir)
+    return _verify_artifact_path(artifact, path)
+
+
+def _verify_artifact_path(artifact: ModelArtifact, path: Path) -> Path:
     if not path.is_file():
         raise ModelStoreError(f"model is missing: {path}")
     if path.stat().st_size != artifact.size:
@@ -109,14 +113,18 @@ def install_models(
     model_dir: Path,
     *,
     timeout_sec: float = 60.0,
+    urlopen=urllib.request.urlopen,
 ) -> tuple[Path, ...]:
     model_dir.mkdir(parents=True, exist_ok=True)
     installed: list[Path] = []
     for artifact in manifest.models:
         destination = artifact.path_in(model_dir)
         if destination.exists():
-            installed.append(verify_artifact(artifact, model_dir))
-            continue
+            try:
+                installed.append(verify_artifact(artifact, model_dir))
+                continue
+            except ModelStoreError:
+                destination.unlink()
         if not artifact.release_url:
             raise ModelNotPublishedError(
                 f"{artifact.filename} is pending publication; "
@@ -124,14 +132,22 @@ def install_models(
             )
 
         temporary = destination.with_suffix(destination.suffix + ".part")
+        temporary.unlink(missing_ok=True)
         try:
-            with urllib.request.urlopen(
+            with urlopen(
                 artifact.release_url,
                 timeout=timeout_sec,
             ) as response, temporary.open("wb") as output:
                 shutil.copyfileobj(response, output)
+            _verify_artifact_path(artifact, temporary)
             temporary.replace(destination)
-            installed.append(verify_artifact(artifact, model_dir))
+            installed.append(destination)
+        except ModelStoreError:
+            raise
+        except OSError as error:
+            raise ModelStoreError(
+                f"model download failed for {artifact.filename}: {error}"
+            ) from error
         finally:
             temporary.unlink(missing_ok=True)
     return tuple(installed)

@@ -69,8 +69,8 @@ class YoloDetector:
         if track:
             if find_spec("lap") is None:
                 raise RuntimeError(
-                    "integrated ByteTrack mode requires the optional 'lap' "
-                    "package; install it explicitly before realtime use"
+                    "integrated ByteTrack mode requires the tracking extra; "
+                    "install it with 'python -m pip install -e \".[tracking]\"'"
                 )
             result = self._model.track(
                 frame,

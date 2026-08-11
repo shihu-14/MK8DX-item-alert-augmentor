@@ -18,4 +18,8 @@ not been reproduced in the current Mac environment.
 
 Future runs use `scripts/train_yolo.py` and must record the exact command,
 dataset version, package versions, class order, metrics, failures, and
-checkpoint hash.
+checkpoint hash. The script writes `training-metadata.json` into the completed
+ignored run directory with seed, deterministic mode, training options,
+dataset-config hash, local base-model hash when available, and major package
+versions. Evaluation evidence and promoted-checkpoint facts still require an
+explicit registry update.

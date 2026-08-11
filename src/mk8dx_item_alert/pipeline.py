@@ -63,6 +63,8 @@ class FrameProcessor:
         if gate_active:
             started = time.perf_counter()
             masked = self.cv2.bitwise_and(frame, frame, mask=self.mask)
+            timings["mask"] = _elapsed_ms(started)
+            started = time.perf_counter()
             detections = tuple(
                 detection
                 for detection in self.item_detector.detect(
@@ -71,8 +73,9 @@ class FrameProcessor:
                 )
                 if detection.confidence >= self.config.thresholds.item_confidence
             )
-            timings["item"] = _elapsed_ms(started)
+            timings["item_inference"] = _elapsed_ms(started)
 
+            started = time.perf_counter()
             if self.integrated_mode:
                 opponents = tuple(
                     detection
@@ -101,12 +104,16 @@ class FrameProcessor:
                     self.config.alerts,
                 )
         elif self.integrated_mode:
+            started = time.perf_counter()
             self.tracker.update_associations((), now, self.config.alerts)
+        else:
+            started = time.perf_counter()
 
         alerts = rank_nearest(
             self.tracker.visible(now),
             self.config.alerts.max_visible,
         )
+        timings["association_tracking_ranking"] = _elapsed_ms(started)
         return FrameResult(
             gate_active=gate_active,
             mode="integrated" if self.integrated_mode else "legacy",

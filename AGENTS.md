@@ -30,6 +30,10 @@ root-level training scripts. Git history is the archive.
 - Runtime must never download models implicitly.
 - Legacy six-class detections are not proof of held state.
 - Integrated alerts require an opponent track and temporal confirmation.
+- Runtime tracker IDs must never be treated as ground-truth identities;
+  evaluation matches frame/label/opponent bbox and scopes lead time by event.
+- Legacy mode must run without the optional `tracking` extra. Integrated mode
+  must fail clearly when it is unavailable.
 - Keep pure behavior testable without a camera or YOLO checkpoint.
 
 ## Data And Artifact Policy
@@ -49,6 +53,7 @@ Run from an installed development environment:
 ```bash
 pytest -q
 RUFF_CACHE_DIR=/tmp/mk8dx-ruff ruff check .
+python -m compileall src scripts tests
 mk8dx-alert --help
 mk8dx-alert models verify
 ```

@@ -62,7 +62,12 @@ for obsolete code.
 - Compare legacy and integrated behavior on the same held/non-held clips.
 - Report model metrics separately from held-alert metrics.
 - Measure thrown, dropped, background, and HUD false alerts.
-- Measure gate errors, lead timing, effective FPS, and p95 frame latency.
+- Match evaluation identities by frame/label/opponent-bbox IoU, never by an
+  assumed equality between GT identity and runtime tracker ID.
+- Count missing gate predictions as errors and calculate lead timing per held
+  event from matched predictions only.
+- Measure effective FPS from processed frames/wall time and report p95
+  `processed_frame` latency using the documented runtime boundary.
 - Do not claim the 30 FPS / 100 ms target without a fixed 1080p benchmark.
 
 ## Topic References

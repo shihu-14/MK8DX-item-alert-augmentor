@@ -63,6 +63,7 @@ class OutputConfig:
     video_path: Path = PROJECT_ROOT / "outputs" / "annotated.mp4"
     fps: float = 30.0
     window_name: str = "MK8DX Held-Item Alert"
+    predictions_jsonl_path: Path | None = None
 
 
 @dataclass(frozen=True)

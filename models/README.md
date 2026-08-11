@@ -13,3 +13,8 @@ mk8dx-alert models verify
 `mk8dx-alert models install` downloads only entries that have an approved
 `release_url`. The current entries intentionally have no URL while
 redistribution rights are being reviewed.
+
+Installation writes to a sibling `.part` file, validates manifest size and
+SHA-256 there, and only then atomically replaces the final filename. Failed
+downloads and validation failures remove the temporary file and never leave a
+new partial checkpoint at the final path.

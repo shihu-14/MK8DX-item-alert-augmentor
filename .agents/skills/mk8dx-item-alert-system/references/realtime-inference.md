@@ -11,14 +11,17 @@
 
 ## Profiling
 
-`--profile` reports average and p95 milliseconds for gate inference, item
-inference, video writing, and the full processed frame. Benchmark with saving
-disabled unless measuring writer cost.
+`--profile` reports average and p95 milliseconds for capture, gate, mask, item
+inference, association/tracking/ranking, overlay, display, enabled writes, and
+the measured `processed_frame`. Benchmark with saving disabled unless measuring
+writer cost. The first initialization frame is processed but excluded.
 
-The initial performance target is 30 effective FPS and p95 end-to-end frame
-latency at or below 100 ms for a fixed 1080p input on the target machine. Record
-hardware, input, package versions, and command. Do not claim this target from
-model-reported inference time alone.
+Effective FPS is measured-frame count divided by measurement wall-clock time.
+`processed_frame` starts at capture and ends after display and enabled writes;
+it excludes one-time setup and display scanout and is not capture-to-photon
+latency. The initial target is 30 effective FPS and p95 `processed_frame` at or
+below 100 ms for a fixed 1080p input. Record hardware, input, package versions,
+and command. Do not claim this target from model-reported inference time alone.
 
 ## Optimization Order
 

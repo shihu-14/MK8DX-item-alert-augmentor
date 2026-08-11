@@ -12,13 +12,15 @@ dependencies = [
     "opencv-python>=4.11,<6",
     "numpy>=2,<3",
     "ultralytics>=8.3.116,<9",
-    "lap>=0.5.12,<1",
 ]
 
 [project.scripts]
 mk8dx-alert = "mk8dx_item_alert.cli:main"
 
 [project.optional-dependencies]
+tracking = [
+    "lap>=0.5.12,<1",
+]
 dev = [
     "pytest",
     "ruff",

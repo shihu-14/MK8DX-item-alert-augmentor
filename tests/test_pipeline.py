@@ -47,3 +47,9 @@ def test_integrated_pipeline_confirms_and_ranks_associated_item() -> None:
     assert result.mode == "integrated"
     assert result.alerts[0].track_id == 7
     assert detector.track_flags == [True, True, True]
+    assert set(result.timings_ms) == {
+        "gate",
+        "mask",
+        "item_inference",
+        "association_tracking_ranking",
+    }

@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import math
 import time
 from collections import defaultdict
+from dataclasses import dataclass
 
 from .config import PROJECT_ROOT, RuntimeConfig
+from .evaluation import write_prediction_frame
 from .inference import YoloDetector
 from .labels import (
     INTEGRATED_MODEL_LABELS,
@@ -15,6 +18,13 @@ from .labels import (
 )
 from .overlay import calculate_ranked_positions, draw_icon, draw_rank_badge
 from .pipeline import FrameProcessor
+
+
+@dataclass(frozen=True)
+class StageProfile:
+    average_ms: float
+    p95_ms: float
+    samples: int
 
 
 def run_realtime(config: RuntimeConfig) -> None:
@@ -43,6 +53,7 @@ def run_realtime(config: RuntimeConfig) -> None:
         raise OSError(f"capture source could not be opened: {config.source!r}")
 
     writer = None
+    prediction_handle = None
     try:
         ok, frame = capture.read()
         if not ok:
@@ -77,12 +88,32 @@ def run_realtime(config: RuntimeConfig) -> None:
                     f"video output could not be opened: {config.output.video_path}"
                 )
 
+        if config.output.predictions_jsonl_path is not None:
+            prediction_path = config.output.predictions_jsonl_path
+            prediction_path.parent.mkdir(parents=True, exist_ok=True)
+            prediction_handle = prediction_path.open("w", encoding="utf-8")
+
         profiler: dict[str, list[float]] = defaultdict(list)
-        while ok:
-            frame_started = time.perf_counter()
+        frame_number = 0
+        measuring = False
+        measured_frames = 0
+        measurement_started = 0.0
+        measurement_ended = 0.0
+        while True:
+            frame_started = 0.0
+            if measuring:
+                frame_started = time.perf_counter()
+                capture_started = time.perf_counter()
+                ok, frame = capture.read()
+                if not ok:
+                    break
+                profiler["capture"].append(_elapsed_ms(capture_started))
+
             now = time.monotonic()
             annotated = frame.copy()
             result = processor.process(frame, now)
+
+            overlay_started = time.perf_counter()
             if config.debug:
                 _draw_debug_detections(annotated, result.detections)
             _draw_alerts(
@@ -92,25 +123,54 @@ def run_realtime(config: RuntimeConfig) -> None:
                 config.alerts.size,
                 config.alerts.bottom_margin,
             )
+            if measuring:
+                profiler["overlay"].append(_elapsed_ms(overlay_started))
 
+            if prediction_handle is not None:
+                prediction_started = time.perf_counter()
+                write_prediction_frame(prediction_handle, frame_number, result)
+                if measuring:
+                    profiler["prediction_write"].append(
+                        _elapsed_ms(prediction_started)
+                    )
+
+            display_started = time.perf_counter()
             cv2.imshow(config.output.window_name, annotated)
+            quit_requested = cv2.waitKey(1) & 0xFF == ord("q")
+            if measuring:
+                profiler["display"].append(_elapsed_ms(display_started))
+
             if writer is not None:
                 write_started = time.perf_counter()
                 writer.write(annotated)
-                profiler["write"].append(_elapsed_ms(write_started))
+                if measuring:
+                    profiler["video_write"].append(_elapsed_ms(write_started))
 
-            profiler["frame"].append(_elapsed_ms(frame_started))
-            for stage, elapsed in result.timings_ms.items():
-                profiler[stage].append(elapsed)
-            if cv2.waitKey(1) & 0xFF == ord("q"):
+            if measuring:
+                for stage, elapsed in result.timings_ms.items():
+                    profiler[stage].append(elapsed)
+                profiler["processed_frame"].append(_elapsed_ms(frame_started))
+                measured_frames += 1
+                measurement_ended = time.perf_counter()
+
+            frame_number += 1
+            if quit_requested:
                 break
-            ok, frame = capture.read()
+            if not measuring:
+                measuring = True
+                measurement_started = time.perf_counter()
+
         if config.profile:
-            _print_profile(profiler)
+            wall_seconds = (
+                measurement_ended - measurement_started if measured_frames else 0.0
+            )
+            _print_profile(profiler, measured_frames, wall_seconds)
     finally:
         capture.release()
         if writer is not None:
             writer.release()
+        if prediction_handle is not None:
+            prediction_handle.close()
         cv2.destroyAllWindows()
 
 
@@ -178,16 +238,33 @@ def _elapsed_ms(started: float) -> float:
     return (time.perf_counter() - started) * 1000.0
 
 
-def _print_profile(samples: dict[str, list[float]]) -> None:
+def _summarize_samples(values: list[float]) -> StageProfile:
+    ordered = sorted(values)
+    if not ordered:
+        raise ValueError("profile samples must not be empty")
+    p95_index = math.ceil(len(ordered) * 0.95) - 1
+    return StageProfile(
+        average_ms=sum(ordered) / len(ordered),
+        p95_ms=ordered[p95_index],
+        samples=len(ordered),
+    )
+
+
+def _print_profile(
+    samples: dict[str, list[float]],
+    processed_frames: int,
+    wall_seconds: float,
+) -> None:
+    effective_fps = processed_frames / wall_seconds if wall_seconds > 0 else 0.0
+    print(
+        f"effective_fps={effective_fps:.2f} processed_frames={processed_frames} "
+        f"wall_seconds={wall_seconds:.3f}"
+    )
     for stage in sorted(samples):
-        values = sorted(samples[stage])
-        if not values:
+        if not samples[stage]:
             continue
-        p95_index = min(len(values) - 1, int(len(values) * 0.95))
-        average = sum(values) / len(values)
-        fps = 1000.0 / average if stage == "frame" and average else None
-        fps_text = f" fps={fps:.2f}" if fps is not None else ""
+        summary = _summarize_samples(samples[stage])
         print(
-            f"{stage}: avg={average:.2f}ms "
-            f"p95={values[p95_index]:.2f}ms n={len(values)}{fps_text}"
+            f"{stage}: avg={summary.average_ms:.2f}ms "
+            f"p95={summary.p95_ms:.2f}ms n={summary.samples}"
         )
